@@ -27,6 +27,8 @@ from aiogram import Bot, Dispatcher, types
 from aiogram.utils.executor import start_polling
 from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardButton as IKB
 
+from aiogram.utils.exceptions import MessageNotModified
+
 #internal libs
 import ui_constants as uic
 
@@ -46,7 +48,7 @@ logging.basicConfig(
     handlers=(file_log, console_out),
     format='[%(asctime)s | %(levelname)s] %(name)s: %(message)s',
     datefmt='%b %d %H:%M:%S %Y',
-    level=logging.INFO)
+    level=int(CONFIGS['logging']['level']))
 LOGGER = logging.getLogger("bot")
 
 
@@ -303,7 +305,11 @@ def start():
 
         if(len(args) < 5):
             keyboard = getKeyboard(args, database, dbcursor)
-            await callback_query.message.edit_text(uic.PICK_MSG[len(args)-1], reply_markup=keyboard)
+            try:
+                await callback_query.message.edit_text(uic.PICK_MSG[len(args)-1], reply_markup=keyboard)
+            except MessageNotModified:
+                await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
+
         else:
             video = getVideo(args, database, dbcursor)
             if video:

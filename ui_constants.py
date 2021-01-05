@@ -1,6 +1,6 @@
 NO_CONFIG_MESSAGE = """
   Please create config.ini:
-
+-------------------------------------------------------------------------------
   [data-base]
   host=localhost
   port=
@@ -11,7 +11,18 @@ NO_CONFIG_MESSAGE = """
   [telegram]
   token = 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
   dashboard = -1
- """
+
+  [logging]
+  #logging levels:
+
+  # CRITICAL    50
+  # ERROR       40
+  # WARNING     30
+  # INFO        20 DEFFAULT
+  # DEBUG       10
+  # NOTSET      0
+  level=20
+"""
 
 BACK = "⬆️ Back"
 PREV = "⬅️"
@@ -25,6 +36,7 @@ DELETED = "Stream succsesful deleted!"
 ERROR = "Get some error("
 WRONG = "Wrong command("
 NOT_FOUND = "Target is not founded("
+NOTHING_NEW = "Nothing is new."
 
 START_CMD = "Pick the streamer!"
 UNKNOW_CMD = "Unknow command =/"
