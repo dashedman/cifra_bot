@@ -20,7 +20,7 @@ from functools import partial
 from random import randint
 
 #external libs
-import pymysql
+from pymysql.connections import Connection
 from pymysql.cursors import DictCursor
 
 from aiogram import Bot, Dispatcher, types
@@ -51,6 +51,17 @@ logging.basicConfig(
     datefmt='%b %d %H:%M:%S %Y',
     level=int(CONFIGS['logging']['level']))
 LOGGER = logging.getLogger("bot")
+
+#classes
+class MyConnection(Connection):
+    def __enter__(self):
+        if not self.open:
+            self.ping(reconnect=True)
+        return self
+
+    def __exit__(self, *exc_info):
+        del exc_info
+        self.close()
 
 
 #fuctions
@@ -225,14 +236,14 @@ def delStream(caption, db, cur):
 def start():
     LOGGER.info("Starting...")
 
-    database = pymysql.connect(
+    database = MyConnection(
         host=f"{CONFIGS['data-base']['host']}",
         user=CONFIGS['data-base']['login'],
         password=CONFIGS['data-base']['password'],
         database=CONFIGS['data-base']['name'],
         cursorclass=DictCursor
     )
-    with database.cursor() as dbcursor:
+    with database, database.cursor() as dbcursor:
         dbcursor.execute("""
             CREATE TABLE IF NOT EXISTS streams (
                 id      Int             NOT NULL PRIMARY KEY AUTO_INCREMENT,
@@ -258,7 +269,7 @@ def start():
         #get streamers from db
         #and
         #construct keyboard
-        with database.cursor() as dbcursor:
+        with database, database.cursor() as dbcursor:
             keyboard = getKeyboard([1], database, dbcursor)
         await message.reply(uic.START_CMD, reply_markup=keyboard)
 
@@ -271,7 +282,7 @@ def start():
         #construct keyboard
         command, args = message.get_full_command()
         args = args.split()
-        with database.cursor() as dbcursor:
+        with database, database.cursor() as dbcursor:
             succsces = addStream(args, message.reply_to_message, database, dbcursor)
 
         if succsces:
@@ -287,7 +298,7 @@ def start():
         #and
         #construct keyboard
         command, caption = message.get_full_command()
-        with database.cursor() as dbcursor:
+        with database, database.cursor() as dbcursor:
             succsces = delStream(caption, database, dbcursor)
 
         if succsces:
@@ -309,7 +320,7 @@ def start():
         if(args[0] == 'pass'): return
 
         if(args[0] == 'last'):
-            with database.cursor() as dbcursor:
+            with database, database.cursor() as dbcursor:
                 video = getLastVideo(args, database, dbcursor)
 
             if video:
@@ -319,7 +330,7 @@ def start():
             return
 
         if(len(args) < 5):
-            with database.cursor() as dbcursor:
+            with database, database.cursor() as dbcursor:
                 keyboard = getKeyboard(args, database, dbcursor)
             try:
                 await callback_query.message.edit_text(uic.PICK_MSG[len(args)-1], reply_markup=keyboard)
@@ -327,7 +338,7 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
 
         else:
-            with database.cursor() as dbcursor:
+            with database, database.cursor() as dbcursor:
                 video = getVideo(args, database, dbcursor)
             if video:
                 await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
