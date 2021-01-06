@@ -39,7 +39,7 @@ NOT_FOUND = "Target is not founded("
 NOTHING_NEW = "Nothing is new."
 
 START_CMD = "Pick the streamer!"
-UNKNOW_CMD = "Unknow command =/"
+UNKNOW_CMD = "Unknow command =/\nEnter /start to get keyboard"
 
 PICK_MSG = [
     START_CMD,
@@ -49,3 +49,5 @@ PICK_MSG = [
 ]
 
 LAST_STREAM = "Last Stream..."
+
+BOTTOM_KEYBOARD = "/start"

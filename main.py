@@ -26,6 +26,7 @@ from pymysql.cursors import DictCursor
 from aiogram import Bot, Dispatcher, types
 from aiogram.utils.executor import start_polling
 from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardButton as IKB
+from aiogram.types.reply_keyboard import ReplyKeyboardMarkup, KeyboardButton as RKB
 
 from aiogram.utils.exceptions import MessageNotModified
 
@@ -162,6 +163,14 @@ def getKeyboard(arguments, db, cur):
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
+def getBottomKeyboard(db, cur):
+    return ReplyKeyboardMarkup(
+        [[RKB(uic.BOTTOM_KEYBOARD)]],
+        resize_keyboard=True,
+        one_time_keyboard=False,
+        selective=False
+    )
+
 def addStream(args, reply, db, cur):
     streamer = args[0]
     date = time.strptime(args[1], "%d.%m.%Y")
@@ -221,24 +230,23 @@ def start():
         user=CONFIGS['data-base']['login'],
         password=CONFIGS['data-base']['password'],
         database=CONFIGS['data-base']['name'],
-        port=CONFIGS['data-base']['port'],
         cursorclass=DictCursor
     )
-    dbcursor = database.cursor()
-    dbcursor.execute("""
-        CREATE TABLE IF NOT EXISTS streams (
-            id      Int             NOT NULL PRIMARY KEY AUTO_INCREMENT,
-            author  Varchar(64)     NOT NULL,
-            udata   Int             NOT NULL,
-            year    Int             NOT NULL,
-            month   TinyInt         NOT NULL,
-            day     TinyInt         NOT NULL,
-            file_id Varchar(255)    NOT NULL,
-            caption Varchar(1024)   NOT NULL,
-            part    TinyInt         NULL
-        )
-    """)
-    database.commit()
+    with database.cursor() as dbcursor:
+        dbcursor.execute("""
+            CREATE TABLE IF NOT EXISTS streams (
+                id      Int             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                author  Varchar(64)     NOT NULL,
+                udata   Int             NOT NULL,
+                year    Int             NOT NULL,
+                month   TinyInt         NOT NULL,
+                day     TinyInt         NOT NULL,
+                file_id Varchar(255)    NOT NULL,
+                caption Varchar(1024)   NOT NULL,
+                part    TinyInt         NULL
+            )
+        """)
+        database.commit()
 
     bot = Bot(token=CONFIGS['telegram']['token'])
     dispatcher = Dispatcher(bot)
@@ -250,7 +258,8 @@ def start():
         #get streamers from db
         #and
         #construct keyboard
-        keyboard = getKeyboard([1], database, dbcursor)
+        with database.cursor() as dbcursor:
+            keyboard = getKeyboard([1], database, dbcursor)
         await message.reply(uic.START_CMD, reply_markup=keyboard)
 
     @dispatcher.message_handler(commands=["add"])
@@ -262,7 +271,9 @@ def start():
         #construct keyboard
         command, args = message.get_full_command()
         args = args.split()
-        succsces = addStream(args, message.reply_to_message, database, dbcursor)
+        with database.cursor() as dbcursor:
+            succsces = addStream(args, message.reply_to_message, database, dbcursor)
+
         if succsces:
             await message.reply(uic.ADDED)
         else:
@@ -276,7 +287,9 @@ def start():
         #and
         #construct keyboard
         command, caption = message.get_full_command()
-        succsces = delStream(caption, database, dbcursor)
+        with database.cursor() as dbcursor:
+            succsces = delStream(caption, database, dbcursor)
+
         if succsces:
             await message.reply(uic.DELETED)
         else:
@@ -296,7 +309,9 @@ def start():
         if(args[0] == 'pass'): return
 
         if(args[0] == 'last'):
-            video = getLastVideo(args, database, dbcursor)
+            with database.cursor() as dbcursor:
+                video = getLastVideo(args, database, dbcursor)
+
             if video:
                 await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
             else:
@@ -304,14 +319,16 @@ def start():
             return
 
         if(len(args) < 5):
-            keyboard = getKeyboard(args, database, dbcursor)
+            with database.cursor() as dbcursor:
+                keyboard = getKeyboard(args, database, dbcursor)
             try:
                 await callback_query.message.edit_text(uic.PICK_MSG[len(args)-1], reply_markup=keyboard)
             except MessageNotModified:
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
 
         else:
-            video = getVideo(args, database, dbcursor)
+            with database.cursor() as dbcursor:
+                video = getVideo(args, database, dbcursor)
             if video:
                 await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
             else:
