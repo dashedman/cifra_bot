@@ -1,0 +1,58 @@
+[Jan 07 21:18:56 2021 | info] bot: Starting...
+[Jan 07 21:18:57 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 07 21:18:59 2021 | warning] aiogram: Updates were skipped successfully.
+[Jan 07 21:18:59 2021 | info] bot: Starting demons...
+[Jan 07 21:18:59 2021 | info] bot: Listening...
+[Jan 07 21:19:18 2021 | info] aiogram.dispatcher.dispatcher: Start polling.
+[Jan 07 21:19:19 2021 | error] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-11' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=TypeError("unsupported operand type(s) for -: 'str' and 'int'")>
+Traceback (most recent call last):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 388, in _process_polling_updates
+    for responses in itertools.chain.from_iterable(await self.process_updates(updates, fast)):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 225, in process_updates
+    return await asyncio.gather(*tasks)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 273, in process_update
+    return await self.callback_query_handlers.notify(update.callback_query)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 531, in button_handler
+    keyboard = getNotifKeyboard(callback_query.message.chat.id, args[1], database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 531, in button_handler
+    keyboard = getNotifKeyboard(callback_query.message.chat.id, args[1], database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 320, in getNotifKeyboard
+    for streamer in streamers[(page-1)*10:page*10]:
+TypeError: unsupported operand type(s) for -: 'str' and 'int'
+[Jan 07 21:19:58 2021 | info] bot: Shutdown...
+[Jan 07 21:20:07 2021 | info] bot: Starting...
+[Jan 07 21:20:08 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 07 21:20:09 2021 | warning] aiogram: Updates were skipped successfully.
+[Jan 07 21:20:09 2021 | info] bot: Starting demons...
+[Jan 07 21:20:09 2021 | info] bot: Listening...
+[Jan 07 21:20:30 2021 | info] aiogram.dispatcher.dispatcher: Start polling.
+[Jan 07 21:20:32 2021 | error] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-11' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=AttributeError("'CallbackQuery' object has no attribute 'reply'")>
+Traceback (most recent call last):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 388, in _process_polling_updates
+    for responses in itertools.chain.from_iterable(await self.process_updates(updates, fast)):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 225, in process_updates
+    return await asyncio.gather(*tasks)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 273, in process_update
+    return await self.callback_query_handlers.notify(update.callback_query)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 533, in button_handler
+    await callback_query.reply(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
+AttributeError: 'CallbackQuery' object has no attribute 'reply'
+[Jan 07 21:21:19 2021 | info] bot: Shutdown...
+[Jan 07 21:21:48 2021 | info] bot: Shutdowned.
+[Jan 07 21:21:48 2021 | info] aiogram.dispatcher.dispatcher: Stop polling...
+[Jan 07 21:21:48 2021 | warning] aiogram: Goodbye!
+[Jan 07 21:23:09 2021 | info] bot: Starting...
+[Jan 07 21:23:10 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 07 21:23:12 2021 | warning] aiogram: Updates were skipped successfully.
+[Jan 07 21:23:12 2021 | info] bot: Starting demons...
+[Jan 07 21:23:12 2021 | info] bot: Listening...

@@ -24,6 +24,8 @@ NO_CONFIG_MESSAGE = """
   level=20
 """
 
+YES = "🟢"
+NO = "🔴"
 BACK = "⬆️ Back"
 PREV = "⬅️"
 NEXT = "➡️"
@@ -39,7 +41,13 @@ NOT_FOUND = "Target is not founded("
 NOTHING_NEW = "Nothing is new."
 
 START_CMD = "Pick the streamer!"
-UNKNOW_CMD = "Unknow command =/\nEnter /start to get keyboard"
+HELP_CMD = """
+/start - to get keyboard with streams
+/help - to get list of commands
+/notifications - to set notifications about stream
+"""
+NOTIFICATIONS_CMD = "Set the notifications"
+UNKNOW_CMD = "Unknow command =/\nEnter /help to get list of commands"
 
 PICK_MSG = [
     START_CMD,
@@ -48,6 +56,9 @@ PICK_MSG = [
     "Pick the stream!"
 ]
 
-LAST_STREAM = "Last Stream..."
+LATESTS = "Latests..."
 
 BOTTOM_KEYBOARD = "/start"
+
+def build_stream_text(streamer):
+    return f"👁 Стример {streamer['name']} запустил свою трансляцию, ссылка: https://{streamer['platform']}/{streamer['id']}"

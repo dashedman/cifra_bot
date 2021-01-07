@@ -1,0 +1,30 @@
+[Jan 07 21:23:33 2021 | info] aiogram.dispatcher.dispatcher: Start polling.
+[Jan 07 21:23:35 2021 | error] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-11' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=ValueError("invalid literal for int() with base 10: 'notification'")>
+Traceback (most recent call last):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 388, in _process_polling_updates
+    for responses in itertools.chain.from_iterable(await self.process_updates(updates, fast)):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 225, in process_updates
+    return await asyncio.gather(*tasks)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 273, in process_update
+    return await self.callback_query_handlers.notify(update.callback_query)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 552, in button_handler
+    keyboard = getKeyboard(args, database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 552, in button_handler
+    keyboard = getKeyboard(args, database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 129, in getKeyboard
+    page_number = int(arguments[0])
+ValueError: invalid literal for int() with base 10: 'notification'
+[Jan 07 21:25:05 2021 | info] bot: Shutdown... Please wait!
+[Jan 07 21:25:32 2021 | info] aiogram.dispatcher.dispatcher: Stop polling...
+[Jan 07 21:25:32 2021 | warning] aiogram: Goodbye!
+[Jan 07 21:26:28 2021 | info] bot: Starting...
+[Jan 07 21:26:29 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 07 21:26:30 2021 | warning] aiogram: Updates were skipped successfully.
+[Jan 07 21:26:30 2021 | info] bot: Starting demons...
+[Jan 07 21:26:30 2021 | info] bot: Listening...
+[Jan 07 21:26:48 2021 | info] aiogram.dispatcher.dispatcher: Start polling.

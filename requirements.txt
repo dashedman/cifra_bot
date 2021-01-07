@@ -2,3 +2,4 @@ aiogram
 ujson
 uvloop
 pymysql
+streamlink
