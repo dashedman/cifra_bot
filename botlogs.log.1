@@ -1,0 +1,40 @@
+[Jan 07 13:04:52 2021 | INFO] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 07 13:04:52 2021 | WARNING] aiogram: Updates were skipped successfully.
+[Jan 07 13:04:52 2021 | INFO] bot: Listening...
+[Jan 07 13:04:52 2021 | INFO] aiogram.dispatcher.dispatcher: Start polling.
+[Jan 07 13:04:53 2021 | ERROR] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-9' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=ObjectExpectedAsReplyMarkup('Object expected as reply markup')>
+Traceback (most recent call last):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 388, in _process_polling_updates
+    for responses in itertools.chain.from_iterable(await self.process_updates(updates, fast)):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 225, in process_updates
+    return await asyncio.gather(*tasks)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 273, in process_update
+    return await self.callback_query_handlers.notify(update.callback_query)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 353, in button_handler
+    await callback_query.message.edit_text(uic.LAST_STREAM, reply_markup=keyboard)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\types\message.py", line 2526, in edit_text
+    return await self.bot.edit_message_text(
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\bot.py", line 2216, in edit_message_text
+    result = await self.request(api.Methods.EDIT_MESSAGE_TEXT, payload)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\base.py", line 208, in request
+    return await api.make_request(self.session, self.server, self.__token, method, data, files,
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\api.py", line 140, in make_request
+    return check_result(method, response.content_type, response.status, await response.text())
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\api.py", line 115, in check_result
+    exceptions.BadRequest.detect(description)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\utils\exceptions.py", line 139, in detect
+    raise err(cls.text or description)
+aiogram.utils.exceptions.ObjectExpectedAsReplyMarkup: Object expected as reply markup
+[Jan 07 13:05:55 2021 | INFO] bot: Shutdown...
+[Jan 07 13:05:55 2021 | INFO] aiogram.dispatcher.dispatcher: Stop polling...
+[Jan 07 13:05:55 2021 | WARNING] aiogram: Goodbye!
+[Jan 07 13:06:02 2021 | INFO] bot: Starting...
+[Jan 07 13:06:03 2021 | INFO] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 07 13:06:04 2021 | WARNING] aiogram: Updates were skipped successfully.
+[Jan 07 13:06:04 2021 | INFO] bot: Listening...
+[Jan 07 13:06:04 2021 | INFO] aiogram.dispatcher.dispatcher: Start polling.

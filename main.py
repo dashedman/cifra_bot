@@ -12,6 +12,7 @@ import ssl
 import logging
 
 #standart libs parts
+from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
 from pprint import pprint, pformat
 from collections import namedtuple, deque
@@ -42,7 +43,7 @@ CONFIGS = ConfigParser()
 CONFIGS.read("config.ini")
 
 #logining
-file_log = logging.FileHandler("botlogs.log", mode = "w")
+file_log = RotatingFileHandler("botlogs.log", mode='a', maxBytes=5120, backupCount=3)
 console_out = logging.StreamHandler()
 
 logging.basicConfig(
@@ -79,11 +80,47 @@ def getVideo(arguments, db, cur):
         """, arguments)
     return cur.fetchone()
 
-def getLastVideo(arguments, db, cur):
+def getLastStream(arguments, db, cur):
+    keys = []
+    author = arguments[1]
+
     cur.execute("""
-        SELECT file_id, caption FROM streams WHERE author = %s ORDER BY udata DESC
-    """, [arguments[1]])
-    return cur.fetchone()
+        SELECT file_id, caption, udata, year, month, day, part FROM streams WHERE author = %s ORDER BY udata DESC, part ASC
+    """, [author])
+    result = cur.fetchone()
+    if(result['part']):
+        keys.append([IKB(
+            text=f"{result['caption']}",
+            callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
+        )])
+    else:
+        keys.append([IKB(
+            text=f"{result['caption']}",
+            callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}"
+        )])
+
+    if result:
+        udata = result['udata']
+
+        while (result := cur.fetchone()) and (result['udata'] >= udata):
+            if(result['part']):
+                keys.append([IKB(
+                    text=f"{result['caption']}",
+                    callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
+                )])
+            else:
+                keys.append([IKB(
+                    text=f"{result['caption']}",
+                    callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}"
+                )])
+
+    #add control buttons
+    keys.append([])
+
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1@{author}")) #back button
+    keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"last@{author}")) #refresh button
+
+    return InlineKeyboardMarkup(inline_keyboard = keys)
 
 def getKeyboard(arguments, db, cur):
     page_number = int(arguments[0])
@@ -321,12 +358,11 @@ def start():
 
         if(args[0] == 'last'):
             with database, database.cursor() as dbcursor:
-                video = getLastVideo(args, database, dbcursor)
-
-            if video:
-                await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
-            else:
-                await callback_query.message.answer(uic.NOT_FOUND)
+                keyboard = getLastStream(args, database, dbcursor)
+            try:
+                await callback_query.message.edit_text(uic.LAST_STREAM, reply_markup=keyboard)
+            except MessageNotModified:
+                await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
         if(len(args) < 5):
