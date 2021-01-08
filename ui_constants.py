@@ -8,6 +8,10 @@ NO_CONFIG_MESSAGE = """
   password=sqlpassword
   name=my_db
 
+  [streamlink]
+  streamers = streamers.json
+  plugins = streamlink_plugins/
+
   [telegram]
   token = 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
   dashboard = -1
@@ -32,19 +36,23 @@ NEXT = "➡️"
 STOP = "⛔️"
 REFRESH = "🔄"
 
-ADDED = "Stream succsesful added!"
-DELETED = "Stream succsesful deleted!"
+ADDED = "Succsesful added!"
+DELETED = "Succsesful deleted!"
 
 ERROR = "Get some error("
 WRONG = "Wrong command("
 NOT_FOUND = "Target is not founded("
 NOTHING_NEW = "Nothing is new."
+WAIT = "Please wait..."
+FINDED = "Finded!"
+FIND_NO_ARGS = "Please write '/find some text' to seek streams.\nMinimal length of text 3!"
 
 START_CMD = "Pick the streamer!"
 HELP_CMD = """
 /start - to get keyboard with streams
 /help - to get list of commands
 /notifications - to set notifications about stream
+/find some text - to seek streams by text
 """
 NOTIFICATIONS_CMD = "Set the notifications"
 UNKNOW_CMD = "Unknow command =/\nEnter /help to get list of commands"
@@ -57,6 +65,7 @@ PICK_MSG = [
 ]
 
 LATESTS = "Latests..."
+VIDEOS = "Видео с ютуба"
 
 BOTTOM_KEYBOARD = "/start"
 

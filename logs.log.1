@@ -1,5 +1,5 @@
-[Jan 07 21:27:03 2021 | error] asyncio: Task exception was never retrieved
-future: <Task finished name='Task-20' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=MessageNotModified('Message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message')>
+[Jan 08 17:27:34 2021 | error] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-20' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=TypeError('not all arguments converted during string formatting')>
 Traceback (most recent call last):
   File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 388, in _process_polling_updates
     for responses in itertools.chain.from_iterable(await self.process_updates(updates, fast)):
@@ -7,38 +7,51 @@ Traceback (most recent call last):
     return await asyncio.gather(*tasks)
   File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
     response = await handler_obj.handler(*args, **partial_data)
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 273, in process_update
-    return await self.callback_query_handlers.notify(update.callback_query)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 246, in process_update
+    return await self.message_handlers.notify(update.message)
   File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
     response = await handler_obj.handler(*args, **partial_data)
-  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 533, in button_handler
-    await callback_query.message.edit_text(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\types\message.py", line 2526, in edit_text
-    return await self.bot.edit_message_text(
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\bot.py", line 2216, in edit_message_text
-    result = await self.request(api.Methods.EDIT_MESSAGE_TEXT, payload)
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\base.py", line 208, in request
-    return await api.make_request(self.session, self.server, self.__token, method, data, files,
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\api.py", line 140, in make_request
-    return check_result(method, response.content_type, response.status, await response.text())
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\bot\api.py", line 115, in check_result
-    exceptions.BadRequest.detect(description)
-  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\utils\exceptions.py", line 139, in detect
-    raise err(cls.text or description)
-aiogram.utils.exceptions.MessageNotModified: Message is not modified: specified new message content and reply markup are exactly the same as a current content and reply markup of the message
-[Jan 07 21:28:07 2021 | info] bot: Shutdown... Please wait!
-[Jan 07 21:28:16 2021 | info] bot: Starting...
-[Jan 07 21:28:18 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
-[Jan 07 21:28:19 2021 | warning] aiogram: Updates were skipped successfully.
-[Jan 07 21:28:19 2021 | info] bot: Starting demons...
-[Jan 07 21:28:19 2021 | info] bot: Listening...
-[Jan 07 21:28:39 2021 | info] aiogram.dispatcher.dispatcher: Start polling.
-[Jan 07 22:28:49 2021 | info] bot: Shutdown... Please wait!
-[Jan 07 22:28:58 2021 | info] aiogram.dispatcher.dispatcher: Stop polling...
-[Jan 07 22:28:58 2021 | warning] aiogram: Goodbye!
-[Jan 07 22:31:58 2021 | info] bot: Starting...
-[Jan 07 22:32:00 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
-[Jan 07 22:32:01 2021 | warning] aiogram: Updates were skipped successfully.
-[Jan 07 22:32:01 2021 | info] bot: Starting demons...
-[Jan 07 22:32:01 2021 | info] bot: Listening...
-[Jan 07 22:32:20 2021 | info] aiogram.dispatcher.dispatcher: Start polling.
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 613, in notifications_handler
+    keyboard = getFinderKeyboard(expresion, 1, database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 613, in notifications_handler
+    keyboard = getFinderKeyboard(expresion, 1, database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 235, in getFinderKeyboard
+    cur.execute(f"""
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\pymysql\cursors.py", line 161, in execute
+    query = self.mogrify(query, args)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\pymysql\cursors.py", line 140, in mogrify
+    query = query % self._escape_args(args, conn)
+TypeError: not all arguments converted during string formatting
+[Jan 08 17:28:38 2021 | info] bot: Shutdown... Please wait!
+[Jan 08 17:28:38 2021 | info] aiogram.dispatcher.dispatcher: Stop polling...
+[Jan 08 17:28:38 2021 | warning] aiogram: Goodbye!
+[Jan 08 17:28:50 2021 | info] bot: Starting...
+[Jan 08 17:28:51 2021 | info] aiogram: Bot: Cifra [@cifra_s_bot]
+[Jan 08 17:28:52 2021 | warning] aiogram: Updates were skipped successfully.
+[Jan 08 17:28:52 2021 | info] bot: Starting demons...
+[Jan 08 17:28:52 2021 | info] bot: Listening...
+[Jan 08 17:29:10 2021 | info] aiogram.dispatcher.dispatcher: Start polling.
+[Jan 08 17:29:11 2021 | error] asyncio: Task exception was never retrieved
+future: <Task finished name='Task-19' coro=<Dispatcher._process_polling_updates() done, defined at C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py:380> exception=AttributeError("'DictCursor' object has no attribute 'morgify'")>
+Traceback (most recent call last):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 388, in _process_polling_updates
+    for responses in itertools.chain.from_iterable(await self.process_updates(updates, fast)):
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 225, in process_updates
+    return await asyncio.gather(*tasks)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\dispatcher.py", line 246, in process_update
+    return await self.message_handlers.notify(update.message)
+  File "C:\Users\Dashedman\AppData\Local\Programs\Python\Python38-32\lib\site-packages\aiogram\dispatcher\handler.py", line 117, in notify
+    response = await handler_obj.handler(*args, **partial_data)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 617, in notifications_handler
+    keyboard = getFinderKeyboard(expresion, 1, database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 617, in notifications_handler
+    keyboard = getFinderKeyboard(expresion, 1, database, dbcursor)
+  File "C:\Users\Dashedman\github\cifra_bot\main.py", line 235, in getFinderKeyboard
+    pprint(cur.morgify(f"""
+AttributeError: 'DictCursor' object has no attribute 'morgify'
+[Jan 08 17:29:22 2021 | info] bot: Shutdown... Please wait!
+[Jan 08 17:29:22 2021 | info] aiogram.dispatcher.dispatcher: Stop polling...
+[Jan 08 17:29:22 2021 | warning] aiogram: Goodbye!
+[Jan 08 17:29:39 2021 | info] bot: Starting...

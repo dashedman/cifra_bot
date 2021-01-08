@@ -3,7 +3,7 @@
         "platform": "wasd.tv",
         "name": "Mighty Poot (wasd)",
         "id": "mightypoot",
-        "online": true
+        "online": false
     },
     {
         "platform": "twitch.tv",

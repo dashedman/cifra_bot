@@ -50,7 +50,7 @@ LOGGER = logging.getLogger("bot")
 
 #StreamLink Session
 SLS = Streamlink()
-SLS.load_plugins(CONFIGS['streamlink']['plugins'])
+#SLS.load_plugins(CONFIGS['streamlink']['plugins'])
 SLS.set_plugin_option("twitch", "disable_hosting", True)
 SLS.set_plugin_option("twitch", "disable_reruns", True)
 SLS.set_plugin_option("twitch", "disable-ads", True)
@@ -69,7 +69,7 @@ class MyConnection(Connection):
 
 
 #fuctions
-def getVideo(arguments, db, cur):
+def getStream(arguments, db, cur):
     page_number = int(arguments[0])
     arguments = arguments[1:]
 
@@ -81,6 +81,12 @@ def getVideo(arguments, db, cur):
         cur.execute("""
             SELECT file_id, caption FROM streams WHERE author = %s AND year = %s AND month = %s AND day = %s
         """, arguments)
+    return cur.fetchone()
+
+def getVideo(id, db, cur):
+    cur.execute("""
+        SELECT file_id, caption FROM videos WHERE id = %s
+    """, id)
     return cur.fetchone()
 
 def getLastStream(arguments, db, cur):
@@ -142,6 +148,12 @@ def getKeyboard(arguments, db, cur):
                 text=result['author'],
                 callback_data=f"1@{result['author']}"
             )])
+
+        #add bonus button with videos
+        keys.append([IKB(
+            text=uic.VIDEOS,
+            callback_data=f"videos@1"
+        )])
 
     elif(len(arguments) == 1):
         cur.execute(f"""
@@ -214,6 +226,82 @@ def getKeyboard(arguments, db, cur):
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
+def getFinderKeyboard(expresion, page, db, cur):
+    page = int(page)
+    keys = []
+
+
+    #select mysql request
+    cur.execute(f"""
+        SELECT caption, author, day, month, year, part FROM streams WHERE caption LIKE %s ORDER BY udata DESC, part ASC
+    """, [f"%{expresion}%"])
+
+    results = cur.fetchall()
+    for result in results[(page-1)*10:page*10]:
+        if(result['part']):
+            keys.append([IKB(
+                text=f"{result['caption']}",
+                callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
+            )])
+        else:
+            keys.append([IKB(
+                text=f"{result['caption']}",
+                callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}"
+            )])
+
+
+    #add control buttons
+    keys.append([])
+
+    keys[-1].append( #previos page button
+        IKB(text=uic.PREV, callback_data=f"find@{expresion}@{page-1}")
+        if page>1
+        else IKB(text=uic.STOP, callback_data=f"pass")
+    )
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append( #next page button
+        IKB(text=uic.NEXT, callback_data=f"find@{expresion}@{page+1}")
+        if page <= len(results)//10
+        else IKB(text=uic.STOP, callback_data=f"pass")
+    )
+
+    return InlineKeyboardMarkup(inline_keyboard = keys)
+
+def getVideosKeyboard(page, db, cur):
+    page = int(page)
+    keys = []
+
+    #select mysql request
+    cur.execute("""
+        SELECT id, caption FROM videos ORDER BY vorder ASC
+    """)
+    results = cur.fetchall()
+
+    for result in results[(page-1)*10:page*10]:
+        keys.append([IKB(
+            text=result['caption'],
+            callback_data=f"video@{result['id']}"
+        )])
+
+    #add control buttons
+    keys.append([])
+
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+
+    keys[-1].append( #previos page button
+        IKB(text=uic.PREV, callback_data=f"videos@{page-1}")
+        if page>1
+        else IKB(text=uic.STOP, callback_data=f"pass")
+    )
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append( #next page button
+        IKB(text=uic.NEXT, callback_data=f"videos@{page+1}")
+        if page <= len(results)//10
+        else IKB(text=uic.STOP, callback_data=f"pass")
+    )
+
+    return InlineKeyboardMarkup(inline_keyboard = keys)
+
 def getBottomKeyboard(db, cur):
     return ReplyKeyboardMarkup(
         [[RKB(uic.BOTTOM_KEYBOARD)]],
@@ -264,6 +352,36 @@ def addStream(args, reply, db, cur):
 def delStream(caption, db, cur):
     cur.execute("""
         DELETE FROM streams
+        WHERE caption=%s
+        LIMIT 1
+    """, [caption])
+    db.commit()
+
+    return True
+
+def addVideo(args, reply, db, cur):
+    vorder = args[0]
+
+    if not reply: return False
+    if not reply.caption: return False
+    if not reply.video: return False
+
+    cur.execute("""
+        INSERT INTO videos(
+            vorder,
+            file_id, caption
+        ) VALUES(%s,%s,%s)
+    """, [
+        vorder,
+        reply.video.file_id, reply.caption
+    ])
+    db.commit()
+
+    return True
+
+def delVideo(caption, db, cur):
+    cur.execute("""
+        DELETE FROM videos
         WHERE caption=%s
         LIMIT 1
     """, [caption])
@@ -365,6 +483,7 @@ async def streams_demon(bot, db):
 
     async def check_stream(streamer, trusted_deep=3):
         url = f"{streamer['platform']}/{streamer['id']}"
+        LOGGER.debug(f"Checking stream for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
         #рекурсивная проверка
         #для удобства квостовая рекурсия переделана в цикл
         async def cicle_check():
@@ -378,12 +497,11 @@ async def streams_demon(bot, db):
                 except PluginError as err:
                     #если проблемы с интернетом
                     await asyncio.sleep(60)
-                    continue
                 level += 1
                 #если говорит что стрим оффлайн проверим еще раз
             return False
 
-        return await cicle_check()
+        return (await cicle_check()), streamer
 
     #online profilactic
     streamers = get_streamers()
@@ -393,8 +511,11 @@ async def streams_demon(bot, db):
 
     while ALIVE:
         UPDATE_FLAG = False
-        for streamer in (streamers := get_streamers()):
-            online = await check_stream(streamer, 2)
+        streamers = get_streamers()
+        chekers = {check_stream(streamer, 2) for streamer in streamers}
+
+        for cheker in asyncio.as_completed(chekers):
+            online, streamer = await cheker
 
             if online and not streamer["online"]:
                 await sendStream(bot, streamer, uic.build_stream_text(streamer), db)
@@ -431,6 +552,14 @@ def start():
                 file_id Varchar(255)    NOT NULL,
                 caption Varchar(1024)   NOT NULL,
                 part    TinyInt         NULL
+            )
+        """)
+        dbcursor.execute("""
+            CREATE TABLE IF NOT EXISTS videos (
+                id      Int             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                file_id Varchar(255)    NOT NULL,
+                caption Varchar(1024)   NOT NULL,
+                vorder  Int             NULL
             )
         """)
         dbcursor.execute("""
@@ -471,6 +600,26 @@ def start():
             keyboard = getNotifKeyboard(message.chat.id, 1, database, dbcursor)
         await message.reply(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
 
+    @dispatcher.message_handler(commands=["find"])
+    async def notifications_handler(message: types.Message):
+        #processing command /find
+        #get streams from db
+        #and
+        #construct keyboard
+        command, expresion = message.get_full_command()
+        if(len(expresion) < 3): 
+            await message.reply(uic.FIND_NO_ARGS)
+            return
+        my_message = await message.reply(uic.WAIT)
+
+        with database, database.cursor() as dbcursor:
+            keyboard = getFinderKeyboard(expresion, 1, database, dbcursor)
+        try:
+            await my_message.edit_text(uic.FINDED, reply_markup=keyboard)
+        except MessageNotModified:
+            pass
+        return
+
     @dispatcher.message_handler(commands=["info"])
     async def send_info(message: types.Message):
         await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
@@ -487,8 +636,30 @@ def start():
         args = args.split()
         args = [re.sub(r"@@"," ",arg) for arg in args]
 
+        succsces = None
         with database, database.cursor() as dbcursor:
             succsces = addStream(args, message.reply_to_message, database, dbcursor)
+
+        if succsces:
+            await message.reply(uic.ADDED)
+        else:
+            await message.reply(uic.WRONG)
+
+    @dispatcher.message_handler(commands=["addv"])
+    @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
+    async def addv_handler(message: types.Message):
+        #processing command /add streamer data [, part]
+        #get streamers from db
+        #and
+        #construct keyboard
+        command, args = message.get_full_command()
+        args = re.sub(r"\\\s","@@",args)
+        args = args.split()
+        args = [re.sub(r"@@"," ",arg) for arg in args]
+
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            succsces = addVideo(args, message.reply_to_message, database, dbcursor)
 
         if succsces:
             await message.reply(uic.ADDED)
@@ -499,12 +670,28 @@ def start():
     @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
     async def del_handler(message: types.Message):
         #processing command /del caption
+        command, caption = message.get_full_command()
+
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            succsces = delStream(caption, database, dbcursor)
+
+        if succsces:
+            await message.reply(uic.DELETED)
+        else:
+            await message.reply(uic.WRONG)
+
+    @dispatcher.message_handler(commands=["delv"])
+    @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
+    async def delv_handler(message: types.Message):
+        #processing command /del caption
         #get streamers from db
         #and
         #construct keyboard
         command, caption = message.get_full_command()
+        succsces = None
         with database, database.cursor() as dbcursor:
-            succsces = delStream(caption, database, dbcursor)
+            succsces = delVideo(caption, database, dbcursor)
 
         if succsces:
             await message.reply(uic.DELETED)
@@ -543,6 +730,37 @@ def start():
             await callback_query.message.edit_text(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
             return
 
+        if(args[0] == 'videos'): #args[1] = page
+            with database, database.cursor() as dbcursor:
+                keyboard = getVideosKeyboard(args[1], database, dbcursor)
+
+            try:
+                await callback_query.message.edit_text(uic.VIDEOS, reply_markup=keyboard)
+            except MessageNotModified:
+                await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
+            return
+
+        if(args[0] == 'video'): #args[1] = id
+            with database, database.cursor() as dbcursor:
+                video = getVideo(args[1], database, dbcursor)
+            if video:
+                await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
+            else:
+                await callback_query.message.answer(uic.NOT_FOUND)
+            return
+
+        if(args[0] == 'find'): # args[1] = expr; args[2] = page
+            await callback_query.answer(uic.WAIT, show_alert=False)
+
+            with database, database.cursor() as dbcursor:
+                keyboard = getFinderKeyboard(args[1], args[2], database, dbcursor)
+
+            try:
+                await callback_query.message.edit_text(uic.FINDED, reply_markup=keyboard)
+            except MessageNotModified:
+                await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
+            return
+
         if(args[0] == 'last'):
             with database, database.cursor() as dbcursor:
                 keyboard = getLastStream(args, database, dbcursor)
@@ -562,7 +780,7 @@ def start():
 
         else:
             with database, database.cursor() as dbcursor:
-                video = getVideo(args, database, dbcursor)
+                video = getStream(args, database, dbcursor)
             if video:
                 await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
             else:
@@ -584,7 +802,7 @@ def start():
         global ALIVE
         ALIVE = False
         for demon in demons:
-            await asyncio.wait_for(demon, None)
+            demon.cancel()
 
 
 
