@@ -17,10 +17,12 @@ from pymysql.connections import Connection
 from pymysql.cursors import DictCursor
 
 from aiogram import Bot, Dispatcher, types
-from aiogram.utils.executor import start_polling
-from aiogram.utils.exceptions import MessageNotModified
 from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardButton as IKB
 from aiogram.types.reply_keyboard import ReplyKeyboardMarkup, KeyboardButton as RKB
+from aiogram.dispatcher.filters.builtin import IDFilter
+from aiogram.utils.executor import start_polling
+from aiogram.utils.exceptions import MessageNotModified
+
 
 from streamlink import Streamlink, StreamError, PluginError, NoPluginError
 
@@ -38,7 +40,7 @@ CONFIGS = ConfigParser()
 CONFIGS.read("config.ini")
 
 #logining
-file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=5120, backupCount=5)
+file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=10240, backupCount=5)
 console_out = logging.StreamHandler()
 
 logging.basicConfig(
@@ -237,6 +239,8 @@ def getFinderKeyboard(expresion, page, db, cur):
     """, [f"%{expresion}%"])
 
     results = cur.fetchall()
+    if not results: return None
+
     for result in results[(page-1)*10:page*10]:
         if(result['part']):
             keys.append([IKB(
@@ -461,8 +465,8 @@ def getNotifKeyboard(chat_id, page, db, cur):
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
 
-async def sendStream(bot, streamer, text, db):
-    LOGGER.info(f"Sending for {streamer['name']}...")
+async def broadcastStream(bot, streamer, text, db):
+    LOGGER.info(f"Broadcast for {streamer['name']}...")
 
     with db, db.cursor() as cur:
         cur.execute("""
@@ -470,14 +474,12 @@ async def sendStream(bot, streamer, text, db):
         """, [streamer['platform'], streamer['id']])
         recipients = cur.fetchall()
 
-    senders = [
-        asyncio.create_task(
-            bot.send_message(recipient['id'], text)
-        ) for recipient in recipients
-    ]
+    senders = []
+    for recipient in recipients:
+        await bot.send_message(recipient['id'], text)
+        await asyncio.sleep(0.04)
 
-    await asyncio.wait(senders)
-    LOGGER.info(f"Sending succesfull!")
+    LOGGER.info(f"Broadcast succesfull!")
 
 async def streams_demon(bot, db):
 
@@ -518,7 +520,7 @@ async def streams_demon(bot, db):
             online, streamer = await cheker
 
             if online and not streamer["online"]:
-                await sendStream(bot, streamer, uic.build_stream_text(streamer), db)
+                await broadcastStream(bot, streamer, uic.build_stream_text(streamer), db)
 
             if(streamer["online"] != online):
                 UPDATE_FLAG = True
@@ -607,7 +609,7 @@ def start():
         #and
         #construct keyboard
         command, expresion = message.get_full_command()
-        if(len(expresion) < 3): 
+        if(len(expresion) < 3 or len(expresion) > 30):
             await message.reply(uic.FIND_NO_ARGS)
             return
         my_message = await message.reply(uic.WAIT)
@@ -615,7 +617,10 @@ def start():
         with database, database.cursor() as dbcursor:
             keyboard = getFinderKeyboard(expresion, 1, database, dbcursor)
         try:
-            await my_message.edit_text(uic.FINDED, reply_markup=keyboard)
+            if keyboard:
+                await my_message.edit_text(uic.FINDED, reply_markup=keyboard)
+            else:
+                await my_message.edit_text(uic.NOT_FOUND)
         except MessageNotModified:
             pass
         return
@@ -624,8 +629,16 @@ def start():
     async def send_info(message: types.Message):
         await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
 
-    @dispatcher.message_handler(commands=["add"])
-    @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
+    @dispatcher.message_handler()
+    async def unknow_cmd(message: types.Message):
+        await message.answer(uic.UNKNOW_CMD)
+
+    #DASHBOARD COMMANDS
+    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["vipinfo"])
+    async def send_info(message: types.Message):
+        await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
+
+    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["add"])
     async def add_handler(message: types.Message):
         #processing command /add streamer data [, part]
         #get streamers from db
@@ -645,8 +658,7 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler(commands=["addv"])
-    @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
+    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["addv"])
     async def addv_handler(message: types.Message):
         #processing command /add streamer data [, part]
         #get streamers from db
@@ -666,8 +678,7 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler(commands=["del"])
-    @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
+    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["del"])
     async def del_handler(message: types.Message):
         #processing command /del caption
         command, caption = message.get_full_command()
@@ -681,8 +692,7 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler(commands=["delv"])
-    @dispatcher.message_handler(lambda message: message.chat.id == CONFIGS['telegram']['dashboard'])
+    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["delv"])
     async def delv_handler(message: types.Message):
         #processing command /del caption
         #get streamers from db
@@ -698,10 +708,8 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler()
-    async def unknow_cmd(message: types.Message):
-        await message.answer(uic.UNKNOW_CMD)
 
+    #CALLBACK
     @dispatcher.callback_query_handler()
     async def button_handler(callback_query: types.CallbackQuery):
         args = callback_query.data.split("@")
@@ -741,6 +749,8 @@ def start():
             return
 
         if(args[0] == 'video'): #args[1] = id
+            await callback_query.message.chat.do('upload_video')
+
             with database, database.cursor() as dbcursor:
                 video = getVideo(args[1], database, dbcursor)
             if video:
@@ -756,7 +766,11 @@ def start():
                 keyboard = getFinderKeyboard(args[1], args[2], database, dbcursor)
 
             try:
-                await callback_query.message.edit_text(uic.FINDED, reply_markup=keyboard)
+                if keyboard:
+                    await callback_query.message.edit_text(uic.FINDED, reply_markup=keyboard)
+                else:
+                    await callback_query.message.edit_text(uic.NOT_FOUND)
+
             except MessageNotModified:
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
@@ -779,6 +793,8 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
 
         else:
+            await callback_query.message.chat.do('upload_video')
+
             with database, database.cursor() as dbcursor:
                 video = getStream(args, database, dbcursor)
             if video:

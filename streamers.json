@@ -3,48 +3,48 @@
         "platform": "wasd.tv",
         "name": "Mighty Poot (wasd)",
         "id": "mightypoot",
-        "online": false
+        "online": true
     },
     {
         "platform": "twitch.tv",
         "name": "Mighty Poot (twitch)",
         "id": "mightypoot",
-        "online": false
+        "online": true
     },
     {
         "platform": "wasd.tv",
         "name": "Dawg (wasd)",
         "id": "dawgos",
-        "online": false
+        "online": true
     },
     {
         "platform": "twitch.tv",
         "name": "Dawg (twitch)",
         "id": "dawgdebik",
-        "online": false
+        "online": true
     },
     {
         "platform": "wasd.tv",
         "name": "Alison (wasd)",
         "id": "alison",
-        "online": false
+        "online": true
     },
     {
         "platform": "twitch.tv",
         "name": "Alison (twitch)",
         "id": "alison",
-        "online": false
+        "online": true
     },
     {
         "platform": "twitch.tv",
         "name": "ONI_RISE (twitch)",
         "id": "oni_rise",
-        "online": false
+        "online": true
     },
     {
         "platform": "twitch.tv",
         "name": "Dadork (twitch)",
         "id": "dadork_tv",
-        "online": false
+        "online": true
     }
 ]

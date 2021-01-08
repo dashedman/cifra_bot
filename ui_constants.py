@@ -41,11 +41,11 @@ DELETED = "Succsesful deleted!"
 
 ERROR = "Get some error("
 WRONG = "Wrong command("
-NOT_FOUND = "Target is not founded("
+NOT_FOUND = "Not founded("
 NOTHING_NEW = "Nothing is new."
 WAIT = "Please wait..."
 FINDED = "Finded!"
-FIND_NO_ARGS = "Please write '/find some text' to seek streams.\nMinimal length of text 3!"
+FIND_NO_ARGS = "Please write '/find some text' to seek streams.\nMinimal length of text 3!\nMaximal length of text 30!"
 
 START_CMD = "Pick the streamer!"
 HELP_CMD = """
