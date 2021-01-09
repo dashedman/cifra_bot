@@ -7,7 +7,6 @@ import logging
 import json
 import re
 
-#standart libs parts
 from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
 from pprint import pprint, pformat
@@ -21,8 +20,7 @@ from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardBu
 from aiogram.types.reply_keyboard import ReplyKeyboardMarkup, KeyboardButton as RKB
 from aiogram.dispatcher.filters.builtin import IDFilter
 from aiogram.utils.executor import start_polling
-from aiogram.utils.exceptions import MessageNotModified
-
+from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, BotBlocked
 
 from streamlink import Streamlink, StreamError, PluginError, NoPluginError
 
@@ -68,7 +66,6 @@ class MyConnection(Connection):
         self.close()
         if exc_val:
             raise
-
 
 #fuctions
 def getStream(arguments, db, cur):
@@ -466,6 +463,33 @@ def getNotifKeyboard(chat_id, page, db, cur):
 
 
 async def broadcastStream(bot, streamer, text, db):
+
+    async def stableSend(chat_id, text):
+        try:
+            await bot.send_message(chat_id, text)
+        except BotBlocked:
+            log.error(f"Target [ID:{chat_id}]: blocked by user")
+            with db, db.cursor() as cur:
+                delChat(chat_id, streamer['platform'], streamer['id'], db, cur)
+        except ChatNotFound:
+            log.error(f"Target [ID:{chat_id}]: invalid ID")
+            with db, db.cursor() as cur:
+                delChat(chat_id, streamer['platform'], streamer['id'], db, cur)
+        except RetryAfter as e:
+            log.error(f"Target [ID:{chat_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
+            await asyncio.sleep(e.timeout)
+            return await stableSend(chat_id, text)  # Recursive call
+        except UserDeactivated:
+            log.error(f"Target [ID:{chat_id}]: user is deactivated")
+            with db, db.cursor() as cur:
+                delChat(chat_id, streamer['platform'], streamer['id'], db, cur)
+        except TelegramAPIError:
+            log.exception(f"Target [ID:{chat_id}]: failed")
+        else:
+            return True
+        return False
+
+
     LOGGER.info(f"Broadcast for {streamer['name']}...")
 
     with db, db.cursor() as cur:
@@ -474,12 +498,17 @@ async def broadcastStream(bot, streamer, text, db):
         """, [streamer['platform'], streamer['id']])
         recipients = cur.fetchall()
 
-    senders = []
+    successfull_counter = 0
     for recipient in recipients:
-        await bot.send_message(recipient['id'], text)
+        if await stableSend(recipient['id'], text):
+            successfull_counter += 1
+
         await asyncio.sleep(0.04)
 
-    LOGGER.info(f"Broadcast succesfull!")
+    if(successfull_counter == len(recipients)):
+        LOGGER.info(f"Broadcast succesfull!")
+    else:
+        LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!")
 
 async def streams_demon(bot, db):
 
@@ -629,16 +658,14 @@ def start():
     async def send_info(message: types.Message):
         await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
 
-    @dispatcher.message_handler()
-    async def unknow_cmd(message: types.Message):
-        await message.answer(uic.UNKNOW_CMD)
 
     #DASHBOARD COMMANDS
-    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["vipinfo"])
+    dashboard_filter = IDFilter(chat_id=CONFIGS['telegram']['dashboard'])
+    @dispatcher.message_handler(dashboard_filter, commands=["vipinfo"])
     async def send_info(message: types.Message):
         await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
 
-    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["add"])
+    @dispatcher.message_handler(dashboard_filter, commands=["add"])
     async def add_handler(message: types.Message):
         #processing command /add streamer data [, part]
         #get streamers from db
@@ -658,7 +685,7 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["addv"])
+    @dispatcher.message_handler(dashboard_filter, commands=["addv"])
     async def addv_handler(message: types.Message):
         #processing command /add streamer data [, part]
         #get streamers from db
@@ -678,7 +705,7 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["del"])
+    @dispatcher.message_handler(dashboard_filter, commands=["del"])
     async def del_handler(message: types.Message):
         #processing command /del caption
         command, caption = message.get_full_command()
@@ -692,7 +719,7 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
-    @dispatcher.message_handler(IDFilter(chat_id=CONFIGS['telegram']['dashboard']), commands=["delv"])
+    @dispatcher.message_handler(dashboard_filter, commands=["delv"])
     async def delv_handler(message: types.Message):
         #processing command /del caption
         #get streamers from db
@@ -708,6 +735,10 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
+
+    @dispatcher.message_handler()
+    async def unknow_cmd(message: types.Message):
+        await message.answer(uic.UNKNOW_CMD)
 
     #CALLBACK
     @dispatcher.callback_query_handler()
