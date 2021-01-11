@@ -18,9 +18,13 @@ from pymysql.cursors import DictCursor
 from aiogram import Bot, Dispatcher, types
 from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardButton as IKB
 from aiogram.types.reply_keyboard import ReplyKeyboardMarkup, KeyboardButton as RKB
+from aiogram.dispatcher import DEFAULT_RATE_LIMIT
 from aiogram.dispatcher.filters.builtin import IDFilter
+from aiogram.dispatcher.handler import CancelHandler, current_handler
+from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.utils.executor import start_polling
-from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, BotBlocked
+from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, BotBlocked, Throttled
+from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from streamlink import Streamlink, StreamError, PluginError, NoPluginError
 
@@ -66,6 +70,117 @@ class MyConnection(Connection):
         self.close()
         if exc_val:
             raise
+
+class ThrottlingMiddleware(BaseMiddleware):
+    """
+    Simple middleware
+    """
+
+    def __init__(self, throttling_rate_limit=DEFAULT_RATE_LIMIT, key_prefix='antiflood_'):
+        self.rate_limit = throttling_rate_limit
+        self.prefix = key_prefix
+        super(ThrottlingMiddleware, self).__init__()
+
+    async def on_process_message(self, message: types.Message, data: dict):
+        """
+        This handler is called when dispatcher receives a message
+
+        :param message:
+        """
+
+        # Get current handler
+        handler = current_handler.get()
+
+        # Get dispatcher from context
+        dispatcher = Dispatcher.get_current()
+        # If handler was configured, get rate limit and key from handler
+        if handler:
+            limit = getattr(handler, 'throttling_rate_limit', self.rate_limit)
+            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}")
+        else:
+            limit = self.rate_limit
+            key = f"{self.prefix}_message"
+
+        # Use Dispatcher.throttle method.
+        try:
+            await dispatcher.throttle(key, rate=limit)
+        except Throttled as t:
+            # Execute action
+            await self.message_throttled(message, t)
+
+            # Cancel current handler
+            raise CancelHandler()
+
+    async def message_throttled(self, message: types.Message, throttled: Throttled):
+        """
+        Notify user only on first exceed and notify about unlocking only on last exceed
+
+        :param message:
+        :param throttled:
+        """
+        handler = current_handler.get()
+        dispatcher = Dispatcher.get_current()
+        if handler:
+            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}")
+        else:
+            key = f"{self.prefix}_message"
+
+        # Prevent flooding
+        if throttled.exceeded_count == 2:
+            await message.reply(f"Don't flood.\nSilence for {throttled.rate} sec.")
+        elif throttled.exceeded_count >= 2:
+            pass
+
+    async def on_process_callback_query(self, callback_query: types.CallbackQuery, data: dict):
+        """
+        This handler is called when dispatcher receives a callback_query
+
+        :param callback_query:
+        """
+        # Get current handler
+        handler = current_handler.get()
+
+        # Get dispatcher from context
+        dispatcher = Dispatcher.get_current()
+        # If handler was configured, get rate limit and key from handler
+        if handler:
+            limit = getattr(handler, 'throttling_rate_limit', self.rate_limit)
+            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}")
+        else:
+            limit = self.rate_limit
+            key = f"{self.prefix}_callback_query"
+
+        # Use Dispatcher.throttle method.
+        try:
+            await dispatcher.throttle(key, rate=limit)
+        except Throttled as t:
+            # Execute action
+            await self.callback_query_throttled(callback_query, t)
+
+            # Cancel current handler
+            raise CancelHandler()
+
+    async def callback_query_throttled(self, callback_query: types.CallbackQuery, throttled: Throttled):
+        """
+        Notify user only on first exceed and notify about unlocking only on last exceed
+
+        :param callback_query:
+        :param throttled:
+        """
+        handler = current_handler.get()
+        dispatcher = Dispatcher.get_current()
+        if handler:
+            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}")
+        else:
+            key = f"{self.prefix}_callback_query"
+
+        # Prevent flooding
+        if throttled.exceeded_count == 2:
+            await callback_query.answer("Don't flood. Please wait.", show_alert = False)
+        elif throttled.exceeded_count >= 2:
+            pass
+
+
 
 #fuctions
 def getStream(arguments, db, cur):
@@ -564,6 +679,7 @@ async def streams_demon(bot, db):
 def start():
     LOGGER.info("Starting...")
 
+    #connection to database
     database = MyConnection(
         host=f"{CONFIGS['data-base']['host']}",
         user=CONFIGS['data-base']['login'],
@@ -602,8 +718,26 @@ def start():
         """)
         database.commit()
 
+    #create bot
     bot = Bot(token=CONFIGS['telegram']['token'])
-    dispatcher = Dispatcher(bot)
+    storage = MemoryStorage()
+    dispatcher = Dispatcher(bot, storage=storage)
+
+    middleware = ThrottlingMiddleware(throttling_rate_limit=10)
+    dispatcher.middleware.setup(middleware)
+
+
+    async def flood_handler(message: types.Message, *args, **kwargs):
+        print("flood_handler")
+        pprint(args)
+        pprint(kwargs)
+        await message.reply("Flooder")
+
+    async def flood_callback_handler(callback_query: types.CallbackQuery, *args, **kwargs):
+        print("flood_callback_handler")
+        pprint(args)
+        pprint(kwargs)
+        await callback_query.message.reply("Flooder for callback")
 
     #bot handlers
     @dispatcher.message_handler(commands=["start"])
