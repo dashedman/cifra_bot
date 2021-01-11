@@ -145,10 +145,10 @@ class ThrottlingMiddleware(BaseMiddleware):
         # If handler was configured, get rate limit and key from handler
         if handler:
             limit = getattr(handler, 'throttling_rate_limit', self.rate_limit)
-            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}")
+            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}_{callback_query.data}")
         else:
             limit = self.rate_limit
-            key = f"{self.prefix}_callback_query"
+            key = f"{self.prefix}_callback_query_{callback_query.data}"
 
         # Use Dispatcher.throttle method.
         try:
@@ -170,9 +170,9 @@ class ThrottlingMiddleware(BaseMiddleware):
         handler = current_handler.get()
         dispatcher = Dispatcher.get_current()
         if handler:
-            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}")
+            key = getattr(handler, 'throttling_key', f"{self.prefix}_{handler.__name__}_{callback_query.data}")
         else:
-            key = f"{self.prefix}_callback_query"
+            key = f"{self.prefix}_callback_query_{callback_query.data}"
 
         # Prevent flooding
         if throttled.exceeded_count == 2:
@@ -723,21 +723,8 @@ def start():
     storage = MemoryStorage()
     dispatcher = Dispatcher(bot, storage=storage)
 
-    middleware = ThrottlingMiddleware(throttling_rate_limit=10)
+    middleware = ThrottlingMiddleware(throttling_rate_limit=7)
     dispatcher.middleware.setup(middleware)
-
-
-    async def flood_handler(message: types.Message, *args, **kwargs):
-        print("flood_handler")
-        pprint(args)
-        pprint(kwargs)
-        await message.reply("Flooder")
-
-    async def flood_callback_handler(callback_query: types.CallbackQuery, *args, **kwargs):
-        print("flood_callback_handler")
-        pprint(args)
-        pprint(kwargs)
-        await callback_query.message.reply("Flooder for callback")
 
     #bot handlers
     @dispatcher.message_handler(commands=["start"])
