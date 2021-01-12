@@ -334,7 +334,7 @@ def getKeyboard(arguments, db, cur):
     keys[-1].append(IKB(text=f"{page_number}", callback_data=f"pass"))# info page button
     keys[-1].append( #next page button
         IKB(text=uic.NEXT, callback_data=f"{page_number+1}@{'@'.join(arguments)}")
-        if page_number <= len(results)//10
+        if page_number < len(results)//10
         else IKB(text=uic.STOP, callback_data=f"pass")
     )
 
@@ -377,7 +377,7 @@ def getFinderKeyboard(expresion, page, db, cur):
     keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
     keys[-1].append( #next page button
         IKB(text=uic.NEXT, callback_data=f"find@{expresion}@{page+1}")
-        if page <= len(results)//10
+        if page < len(results)//10
         else IKB(text=uic.STOP, callback_data=f"pass")
     )
 
@@ -412,7 +412,7 @@ def getVideosKeyboard(page, db, cur):
     keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
     keys[-1].append( #next page button
         IKB(text=uic.NEXT, callback_data=f"videos@{page+1}")
-        if page <= len(results)//10
+        if page < len(results)//10
         else IKB(text=uic.STOP, callback_data=f"pass")
     )
 
@@ -570,7 +570,7 @@ def getNotifKeyboard(chat_id, page, db, cur):
         keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
         keys[-1].append( #next page button
             IKB(text=uic.NEXT, callback_data=f"notifset@{page+1}")
-            if page <= len(streamers)//10
+            if page < len(streamers)//10
             else IKB(text=uic.STOP, callback_data=f"pass")
         )
     """
