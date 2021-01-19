@@ -203,6 +203,12 @@ def getVideo(id, db, cur):
     """, id)
     return cur.fetchone()
 
+def getVideo2(id, db, cur):
+    cur.execute("""
+        SELECT file_id, caption FROM videos2 WHERE id = %s
+    """, id)
+    return cur.fetchone()
+
 def getLastStream(arguments, db, cur):
     keys = []
     author = arguments[1]
@@ -264,10 +270,16 @@ def getKeyboard(arguments, db, cur):
             )])
 
         #add bonus button with videos
-        keys.append([IKB(
-            text=uic.VIDEOS,
-            callback_data=f"videos@1"
-        )])
+        keys.append([
+            IKB(
+                text=uic.VIDEOS,
+                callback_data=f"videos@1"
+            ),
+            IKB(
+                text=uic.VIDEOS2,
+                callback_data=f"videos2@1"
+            )
+        ])
 
     elif(len(arguments) == 1):
         cur.execute(f"""
@@ -418,6 +430,41 @@ def getVideosKeyboard(page, db, cur):
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
+def getVideos2Keyboard(page, db, cur):
+    page = int(page)
+    keys = []
+
+    #select mysql request
+    cur.execute("""
+        SELECT id, caption FROM videos2 ORDER BY vorder ASC
+    """)
+    results = cur.fetchall()
+
+    for result in results[(page-1)*10:page*10]:
+        keys.append([IKB(
+            text=result['caption'],
+            callback_data=f"video2@{result['id']}"
+        )])
+
+    #add control buttons
+    keys.append([])
+
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+
+    keys[-1].append( #previos page button
+        IKB(text=uic.PREV, callback_data=f"videos2@{page-1}")
+        if page>1
+        else IKB(text=uic.STOP, callback_data=f"pass")
+    )
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append( #next page button
+        IKB(text=uic.NEXT, callback_data=f"videos2@{page+1}")
+        if page <= (len(results)-1)//10
+        else IKB(text=uic.STOP, callback_data=f"pass")
+    )
+
+    return InlineKeyboardMarkup(inline_keyboard = keys)
+
 def getBottomKeyboard(db, cur):
     return ReplyKeyboardMarkup(
         [[RKB(uic.BOTTOM_KEYBOARD)]],
@@ -495,9 +542,39 @@ def addVideo(args, reply, db, cur):
 
     return True
 
+def addVideo2(args, reply, db, cur):
+    vorder = args[0]
+
+    if not reply: return False
+    if not reply.caption: return False
+    if not reply.video: return False
+
+    cur.execute("""
+        INSERT INTO videos2(
+            vorder,
+            file_id, caption
+        ) VALUES(%s,%s,%s)
+    """, [
+        vorder,
+        reply.video.file_id, reply.caption
+    ])
+    db.commit()
+
+    return True
+
 def delVideo(caption, db, cur):
     cur.execute("""
         DELETE FROM videos
+        WHERE caption=%s
+        LIMIT 1
+    """, [caption])
+    db.commit()
+
+    return True
+
+def delVideo2(caption, db, cur):
+    cur.execute("""
+        DELETE FROM videos2
         WHERE caption=%s
         LIMIT 1
     """, [caption])
@@ -710,6 +787,14 @@ def start():
             )
         """)
         dbcursor.execute("""
+            CREATE TABLE IF NOT EXISTS videos2 (
+                id      Int             NOT NULL PRIMARY KEY AUTO_INCREMENT,
+                file_id Varchar(255)    NOT NULL,
+                caption Varchar(1024)   NOT NULL,
+                vorder  Int             NULL
+            )
+        """)
+        dbcursor.execute("""
             CREATE TABLE IF NOT EXISTS chats (
                 id          BigInt          NOT NULL,
                 platform    Varchar(64)     NOT NULL,
@@ -723,7 +808,7 @@ def start():
     storage = MemoryStorage()
     dispatcher = Dispatcher(bot, storage=storage)
 
-    middleware = ThrottlingMiddleware(throttling_rate_limit=7)
+    middleware = ThrottlingMiddleware(throttling_rate_limit=0)
     dispatcher.middleware.setup(middleware)
 
     #bot handlers
@@ -826,6 +911,26 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
+    @dispatcher.message_handler(dashboard_filter, commands=["addv2"])
+    async def addv2_handler(message: types.Message):
+        #processing command /add streamer data [, part]
+        #get streamers from db
+        #and
+        #construct keyboard
+        command, args = message.get_full_command()
+        args = re.sub(r"\\\s","@@",args)
+        args = args.split()
+        args = [re.sub(r"@@"," ",arg) for arg in args]
+
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            succsces = addVideo2(args, message.reply_to_message, database, dbcursor)
+
+        if succsces:
+            await message.reply(uic.ADDED)
+        else:
+            await message.reply(uic.WRONG)
+
     @dispatcher.message_handler(dashboard_filter, commands=["del"])
     async def del_handler(message: types.Message):
         #processing command /del caption
@@ -856,6 +961,21 @@ def start():
         else:
             await message.reply(uic.WRONG)
 
+    @dispatcher.message_handler(dashboard_filter, commands=["delv2"])
+    async def delv2_handler(message: types.Message):
+        #processing command /del caption
+        #get streamers from db
+        #and
+        #construct keyboard
+        command, caption = message.get_full_command()
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            succsces = delVideo2(caption, database, dbcursor)
+
+        if succsces:
+            await message.reply(uic.DELETED)
+        else:
+            await message.reply(uic.WRONG)
 
     @dispatcher.message_handler()
     async def unknow_cmd(message: types.Message):
@@ -905,6 +1025,27 @@ def start():
 
             with database, database.cursor() as dbcursor:
                 video = getVideo(args[1], database, dbcursor)
+            if video:
+                await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
+            else:
+                await callback_query.message.answer(uic.NOT_FOUND)
+            return
+
+        if(args[0] == 'videos2'): #args[1] = page
+            with database, database.cursor() as dbcursor:
+                keyboard = getVideos2Keyboard(args[1], database, dbcursor)
+
+            try:
+                await callback_query.message.edit_text(uic.VIDEOS2, reply_markup=keyboard)
+            except MessageNotModified:
+                await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
+            return
+
+        if(args[0] == 'video2'): #args[1] = id
+            await callback_query.message.chat.do('upload_video')
+
+            with database, database.cursor() as dbcursor:
+                video = getVideo2(args[1], database, dbcursor)
             if video:
                 await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
             else:

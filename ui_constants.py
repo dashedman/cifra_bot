@@ -65,7 +65,8 @@ PICK_MSG = [
 ]
 
 LATESTS = "Latests..."
-VIDEOS = "Видео с ютуба"
+VIDEOS = "Видео с ютуба - Dawg"
+VIDEOS2 = "Видео с ютуба - Alison"
 
 BOTTOM_KEYBOARD = "/start"
 
