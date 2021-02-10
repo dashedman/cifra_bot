@@ -258,17 +258,6 @@ def getKeyboard(arguments, db, cur):
 
     #select mysql request
     if(len(arguments) == 0):
-        cur.execute("""
-            SELECT DISTINCT author FROM streams
-        """)
-        results = cur.fetchall()
-
-        for result in results[(page_number-1)*10:page_number*10]:
-            keys.append([IKB(
-                text=result['author'],
-                callback_data=f"1@{result['author']}"
-            )])
-
         #add bonus button with videos
         keys.append([
             IKB(
@@ -280,6 +269,18 @@ def getKeyboard(arguments, db, cur):
                 callback_data=f"videos2@1"
             )
         ])
+
+        
+        cur.execute("""
+            SELECT DISTINCT author FROM streams
+        """)
+        results = cur.fetchall()
+
+        for result in results[(page_number-1)*10:page_number*10]:
+            keys.append([IKB(
+                text=result['author'],
+                callback_data=f"1@{result['author']}"
+            )])
 
     elif(len(arguments) == 1):
         cur.execute(f"""
@@ -338,17 +339,13 @@ def getKeyboard(arguments, db, cur):
     else:
         keys[-1].append(IKB(text=uic.BACK, callback_data=f"1@{'@'.join(arguments[:-1])}")) #back button
 
-    keys[-1].append( #previos page button
-        IKB(text=uic.PREV, callback_data=f"{page_number-1}@{'@'.join(arguments)}")
-        if page_number>1
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+    if page_number>1: #previos page button
+        keys[-1].append(IKB(text=uic.PREV, callback_data=f"{page_number-1}@{'@'.join(arguments)}"))
+
     keys[-1].append(IKB(text=f"{page_number}", callback_data=f"pass"))# info page button
-    keys[-1].append( #next page button
-        IKB(text=uic.NEXT, callback_data=f"{page_number+1}@{'@'.join(arguments)}")
-        if page_number <= (len(results)-1)//10
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+
+    if page_number <= (len(results)-1)//10:#next page button
+        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"{page_number+1}@{'@'.join(arguments)}"))
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
@@ -381,17 +378,13 @@ def getFinderKeyboard(expresion, page, db, cur):
     #add control buttons
     keys.append([])
 
-    keys[-1].append( #previos page button
-        IKB(text=uic.PREV, callback_data=f"find@{expresion}@{page-1}")
-        if page>1
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+    if page>1:#previos page button
+        keys[-1].append( IKB(text=uic.PREV, callback_data=f"find@{expresion}@{page-1}") )
+
     keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
-    keys[-1].append( #next page button
-        IKB(text=uic.NEXT, callback_data=f"find@{expresion}@{page+1}")
-        if page <= (len(results)-1)//10
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+
+    if page <= (len(results)-1)//10: #next page button
+        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"find@{expresion}@{page+1}") )
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
@@ -416,17 +409,13 @@ def getVideosKeyboard(page, db, cur):
 
     keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
 
-    keys[-1].append( #previos page button
-        IKB(text=uic.PREV, callback_data=f"videos@{page-1}")
-        if page>1
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+    if page>1:#previos page button
+        keys[-1].append( IKB(text=uic.PREV, callback_data=f"videos@{page-1}") )
+
     keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
-    keys[-1].append( #next page button
-        IKB(text=uic.NEXT, callback_data=f"videos@{page+1}")
-        if page <= (len(results)-1)//10
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+
+    if page <= (len(results)-1)//10: #next page button
+        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"videos@{page+1}") )
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
@@ -451,17 +440,13 @@ def getVideos2Keyboard(page, db, cur):
 
     keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
 
-    keys[-1].append( #previos page button
-        IKB(text=uic.PREV, callback_data=f"videos2@{page-1}")
-        if page>1
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+    if page>1: #previos page button
+        keys[-1].append( IKB(text=uic.PREV, callback_data=f"videos2@{page-1}") )
+
     keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
-    keys[-1].append( #next page button
-        IKB(text=uic.NEXT, callback_data=f"videos2@{page+1}")
-        if page <= (len(results)-1)//10
-        else IKB(text=uic.STOP, callback_data=f"pass")
-    )
+
+    if page <= (len(results)-1)//10: #next page button
+        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"videos2@{page+1}") )
 
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
