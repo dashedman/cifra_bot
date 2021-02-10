@@ -6,6 +6,7 @@ import os
 import logging
 import json
 import re
+import random
 
 from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
@@ -42,7 +43,7 @@ CONFIGS = ConfigParser()
 CONFIGS.read("config.ini")
 
 #logining
-file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=10240, backupCount=5)
+file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=20480, backupCount=5)
 console_out = logging.StreamHandler()
 
 logging.basicConfig(
@@ -270,7 +271,7 @@ def getKeyboard(arguments, db, cur):
             )
         ])
 
-        
+
         cur.execute("""
             SELECT DISTINCT author FROM streams
         """)
@@ -638,6 +639,67 @@ def getNotifKeyboard(chat_id, page, db, cur):
     """
     return InlineKeyboardMarkup(inline_keyboard = keys)
 
+async def broadcastText(bot, text, db):
+
+    async def stableSend(chat_id, platform, streamer_id, text):
+        try:
+            await bot.send_message(chat_id, text)
+        except BotBlocked:
+            LOGGER.error(f"Target [ID:{chat_id}]: blocked by user")
+            with db, db.cursor() as cur:
+                delChat(chat_id, platform, streamer_id, db, cur)
+        except ChatNotFound:
+            LOGGER.error(f"Target [ID:{chat_id}]: invalid ID")
+            with db, db.cursor() as cur:
+                delChat(chat_id, platform, streamer_id, db, cur)
+        except RetryAfter as e:
+            LOGGER.error(f"Target [ID:{chat_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
+            await asyncio.sleep(e.timeout)
+            return await stableSend(chat_id, text)  # Recursive call
+        except UserDeactivated:
+            LOGGER.error(f"Target [ID:{chat_id}]: user is deactivated")
+            with db, db.cursor() as cur:
+                delChat(chat_id, platform, streamer_id, db, cur)
+        except TelegramAPIError:
+            LOGGER.exception(f"Target [ID:{chat_id}]: failed")
+        else:
+            return True
+        return False
+
+
+    LOGGER.info(f"Broadcast info{{ {text:32}{'...' if len(text) > 32 else ''} }}")
+
+    with db, db.cursor() as cur:
+        cur.execute("""
+            SELECT id, platform, streamer_id FROM chats
+        """)
+        recipients = cur.fetchall()
+
+    #test on unicue broadcast
+    repeated = set()
+
+    repeated_counter = 0
+    successfull_counter = 0
+    for recipient in recipients:
+        if recipient['id'] in repeated:
+            repeated_counter += 1
+            continue
+
+        if await stableSend(recipient['id'], recipient['platform'],  recipient['streamer_id'], text):
+            successfull_counter += 1
+            repeated.add(recipient['id'])
+
+        await asyncio.sleep(0.04)
+
+
+
+    if(successfull_counter+repeated_counter == len(recipients)):
+        LOGGER.info(f"Broadcast succesfull!")
+        return f"Broadcast succesfull!"
+    else:
+        LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}.")
+        return f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}."
+
 
 async def broadcastStream(bot, streamer, text, db):
 
@@ -645,23 +707,23 @@ async def broadcastStream(bot, streamer, text, db):
         try:
             await bot.send_message(chat_id, text)
         except BotBlocked:
-            log.error(f"Target [ID:{chat_id}]: blocked by user")
+            LOGGER.error(f"Target [ID:{chat_id}]: blocked by user")
             with db, db.cursor() as cur:
                 delChat(chat_id, streamer['platform'], streamer['id'], db, cur)
         except ChatNotFound:
-            log.error(f"Target [ID:{chat_id}]: invalid ID")
+            LOGGER.error(f"Target [ID:{chat_id}]: invalid ID")
             with db, db.cursor() as cur:
                 delChat(chat_id, streamer['platform'], streamer['id'], db, cur)
         except RetryAfter as e:
-            log.error(f"Target [ID:{chat_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
+            LOGGER.error(f"Target [ID:{chat_id}]: Flood limit is exceeded. Sleep {e.timeout} seconds.")
             await asyncio.sleep(e.timeout)
             return await stableSend(chat_id, text)  # Recursive call
         except UserDeactivated:
-            log.error(f"Target [ID:{chat_id}]: user is deactivated")
+            LOGGER.error(f"Target [ID:{chat_id}]: user is deactivated")
             with db, db.cursor() as cur:
                 delChat(chat_id, streamer['platform'], streamer['id'], db, cur)
         except TelegramAPIError:
-            log.exception(f"Target [ID:{chat_id}]: failed")
+            LOGGER.exception(f"Target [ID:{chat_id}]: failed")
         else:
             return True
         return False
@@ -700,7 +762,7 @@ async def streams_demon(bot, db):
                 #если глубина проверки больше дозволеной то стрим оффлайн
                 try:
                     #Воспользуемся API streamlink'а. Через сессию получаем инфу о стриме. Если инфы нет - то считаем за офлайн.
-                    if SLS.streams(url):
+                    if await asyncio.run_in_executor(None, SLS.streams(url)):
                         return True #online
                 except PluginError as err:
                     #если проблемы с интернетом
@@ -961,6 +1023,20 @@ def start():
             await message.reply(uic.DELETED)
         else:
             await message.reply(uic.WRONG)
+
+    @dispatcher.message_handler(dashboard_filter, commands=["broadcast"])
+    async def broadcast_handler(message: types.Message):
+        #processing command /del caption
+        #get streamers from db
+        #and
+        #construct keyboard
+        command, text = message.get_full_command()
+        result = uic.WRONG
+
+        await message.reply(f"Start broadcast...")
+        result = await broadcastText(bot, text, database)
+        await message.reply(result)
+
 
     @dispatcher.message_handler()
     async def unknow_cmd(message: types.Message):
