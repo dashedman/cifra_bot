@@ -763,7 +763,11 @@ async def streams_demon(bot, db):
                 #если глубина проверки больше дозволеной то стрим оффлайн
                 try:
                     #Воспользуемся API streamlink'а. Через сессию получаем инфу о стриме. Если инфы нет - то считаем за офлайн.
+<<<<<<< HEAD
                     if await loop.run_in_executor(None, SLS.streams(url)):
+=======
+                    if await asyncio.run_in_executor(None, SLS.streams(url)):
+>>>>>>> 18ebf6f8d4fb8f468001dd09fd6da89374618d3f
                         return True #online
                 except PluginError as err:
                     #если проблемы с интернетом
