@@ -755,7 +755,7 @@ async def streams_demon(bot, db):
         url = f"{streamer['platform']}/{streamer['id']}"
         LOGGER.debug(f"Checking stream for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
         #рекурсивная проверка
-        #для удобства квостовая рекурсия переделана в цикл
+        #для удобства хвостовая рекурсия переделана в цикл
         async def cicle_check():
             loop = asyncio.get_event_loop()
             level = 1
@@ -763,11 +763,7 @@ async def streams_demon(bot, db):
                 #если глубина проверки больше дозволеной то стрим оффлайн
                 try:
                     #Воспользуемся API streamlink'а. Через сессию получаем инфу о стриме. Если инфы нет - то считаем за офлайн.
-<<<<<<< HEAD
                     if await loop.run_in_executor(None, SLS.streams(url)):
-=======
-                    if await asyncio.run_in_executor(None, SLS.streams(url)):
->>>>>>> 18ebf6f8d4fb8f468001dd09fd6da89374618d3f
                         return True #online
                 except PluginError as err:
                     #если проблемы с интернетом
@@ -789,6 +785,7 @@ async def streams_demon(bot, db):
         streamers = get_streamers()
         chekers = {check_stream(streamer, 2) for streamer in streamers}
 
+        #итератор в порядке завершения проверок
         for cheker in asyncio.as_completed(chekers):
             online, streamer = await cheker
 
