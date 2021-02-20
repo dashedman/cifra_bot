@@ -38,14 +38,17 @@ REFRESH = "🔄"
 
 ADDED = "Succsesful added!"
 DELETED = "Succsesful deleted!"
+SENDED = "Succsesful sended!"
 
 ERROR = "Get some error("
+FORWARD_ERROR = "Ошибка\nУбедитесь имеет ли бот доступ к отвечаемому сообщению.\nТак же вы можете связатся с нами другими способами, подробнее в описании."
 WRONG = "Wrong command("
 NOT_FOUND = "Not founded("
 NOTHING_NEW = "Nothing is new."
 WAIT = "Please wait..."
 FINDED = "Finded!"
 FIND_NO_ARGS = "Please write '/find some text' to seek streams.\nMinimal length of text 3!\nMaximal length of text 30!"
+TO_SMALL = "Message is to small"
 
 START_CMD = "Pick the streamer!"
 HELP_CMD = """
@@ -53,6 +56,22 @@ HELP_CMD = """
 /help - to get list of commands
 /notifications - to set notifications about stream
 /find some text - to seek streams by text
+/review some text - to send message to developers. Also, you can reply this command to media files for send media to devs.
+"""
+VIPHELP_CMD = """
+/vipinfo - get raw info about msg
+/viphelp - get help for admin commands
+
+/add streamer data [, part] - add stream in reply to `streamer`, with `data` in dd.mm.yyyy, `part` of stream optional
+/addv priority - add Dwag's video, with integer `priority` order
+/addv2 priority - add Alison's video, with integer `priority` order
+
+/del caption - delete one stream by `caption`
+/delv caption - delete one Dwag's video by `caption`
+/delv2 caption - delete one Alison's video by `caption`
+
+/rep chat_id text - send `text` to the chat with `chat_id`, from bot face
+/broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
 """
 NOTIFICATIONS_CMD = "Set the notifications"
 UNKNOW_CMD = "Unknow command =/\nEnter /help to get list of commands"

@@ -17,6 +17,7 @@ from pymysql.connections import Connection
 from pymysql.cursors import DictCursor
 
 from aiogram import Bot, Dispatcher, types
+from aiogram.types.message import Message
 from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardButton as IKB
 from aiogram.types.reply_keyboard import ReplyKeyboardMarkup, KeyboardButton as RKB
 from aiogram.dispatcher import DEFAULT_RATE_LIMIT
@@ -801,6 +802,7 @@ async def streams_demon(bot, db):
         await asyncio.sleep(30)
 
 
+
 #main function
 def start():
     LOGGER.info("Starting...")
@@ -909,16 +911,44 @@ def start():
             pass
         return
 
+    @dispatcher.message_handler(commands=["review"])
+    async def notifications_handler(message: types.Message):
+        #processing command /find
+        #get streams from db
+        #and
+        #construct keyboard
+        command, msg_for_dev = message.get_full_command()
+        if(len(msg_for_dev) < 3):
+            await message.reply(uic.TO_SMALL)
+            return
+
+        try:
+            if(message.reply_to_message is not None):
+                await message.reply_to_message.forward(CONFIGS['telegram']['dashboard'])
+            await message.forward(CONFIGS['telegram']['dashboard'])
+            await bot.send_message(CONFIGS['telegram']['dashboard'], f"Review from {message.from_user.mention}(user: {message.from_user.id}, chat: {message.chat.id}){'[is a bot]' if message.from_user.is_bot else ''}")
+
+            await message.answer(uic.SENDED)
+        except:
+            await message.answer(uic.FORWARD_ERROR)
+            raise
+        return
+
     @dispatcher.message_handler(commands=["info"])
     async def send_info(message: types.Message):
-        await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
+        await message.answer("```\n"+pformat(message.to_python())+"```", parse_mode="markdown")
 
 
     #DASHBOARD COMMANDS
     dashboard_filter = IDFilter(chat_id=CONFIGS['telegram']['dashboard'])
     @dispatcher.message_handler(dashboard_filter, commands=["vipinfo"])
     async def send_info(message: types.Message):
-        await message.answer("```"+pformat(message.to_python())+"```", parse_mode="markdown")
+        await message.answer("```\n"+pformat(message.to_python())+"```", parse_mode="markdown")
+
+    @dispatcher.message_handler(dashboard_filter, commands=["viphelp"])
+    async def help_handler(message: types.Message):
+        #processing command /help
+        await message.reply(uic.VIPHELP_CMD)
 
     @dispatcher.message_handler(dashboard_filter, commands=["add"])
     async def add_handler(message: types.Message):
@@ -1025,6 +1055,31 @@ def start():
             await message.reply(uic.DELETED)
         else:
             await message.reply(uic.WRONG)
+
+    @dispatcher.message_handler(dashboard_filter, commands=["rep"])
+    async def rep_handler(message: types.Message):
+        #processing command /del caption
+        #get streamers from db
+        #and
+        #construct keyboard
+        command, args = message.get_full_command()
+        args = args.split()
+        chat_id = args[0]
+        rep_msg = ' '.join(args[1:])
+
+        try:
+            await bot.send_message(chat_id, rep_msg)
+        except BotBlocked:
+            await message.answer("Bot blocked by user(")
+        except ChatNotFound:
+            await message.answer("Invalid ID")
+        except UserDeactivated:
+            await message.answer("User is deactivated")
+        except:
+            await message.reply(uic.ERROR)
+            raise
+        else:
+            await message.reply(uic.SENDED)
 
     @dispatcher.message_handler(dashboard_filter, commands=["broadcast"])
     async def broadcast_handler(message: types.Message):
