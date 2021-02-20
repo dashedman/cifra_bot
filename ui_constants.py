@@ -59,25 +59,20 @@ HELP_CMD = """
 /start - to get keyboard with streams
 /help - to get list of commands
 /notifications - to set notifications about stream
-/find some text - to seek streams by text
+/find some text - to find streams by name
 Example: "/find беременна"
 
-/mark - добавить стрим в отмеченые(через ответ)
+/mark - add stream in marked (liked) list (by replied video)
 Example:
-1. Получить стрим с помощью /start или /find
-2. Ответить на запись стрима
-3. Написать в ответе "/mark"
-/unmark - удалить стрим из отмеченых(через ответ)
-/marks - получить список отмеченых стримов
+1. get stream use the comand /start or /find
+2. reply video
+3. write in answer "/mark"
+/unmark -delete video out of marked list(by replied video)
+/marks - get list with marked (liked) video
 
-/review some text - to send message to developers. Also, you can reply this command to media files for send media to devs.
-Example: "/review Здравствуйте, могли бы вы помочь мне с..."
+/review some text -  to send message an admin. You NOT must write on English :)
+Example: "/review hello, can you help me with..."
 If you send a message with a picture FIRST send the picture and then reply to it with the text "/review issue about this...."
-Example:
-1. Отправить картинку
-2. Ответить на эту же картинку
-3. Написать в ответе "/review Здравствуйте, могли бы вы помочь мне с..."
-
 """
 VIPHELP_CMD = """
 /vipinfo - get raw info about msg
