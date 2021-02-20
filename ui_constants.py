@@ -41,9 +41,13 @@ DELETED = "Succsesful deleted!"
 SENDED = "Succsesful sended!"
 
 ERROR = "Get some error("
-FORWARD_ERROR = "Ошибка\nУбедитесь имеет ли бот доступ к отвечаемому сообщению.\nТак же вы можете связатся с нами другими способами, подробнее в описании."
+FORWARD_ERROR = """Ошибка!
+Проверьте, что бот имеет доступ к сообщениям и сможет вам ответить.
+Так же вы можете связатся с нами другими способами, подробнее в описании.
+"""
 WRONG = "Wrong command("
 NOT_FOUND = "Not founded("
+REPLY_NOT_FOUND = "Reply stream is not founded("
 NOTHING_NEW = "Nothing is new."
 WAIT = "Please wait..."
 FINDED = "Finded!"
@@ -56,7 +60,24 @@ HELP_CMD = """
 /help - to get list of commands
 /notifications - to set notifications about stream
 /find some text - to seek streams by text
+Example: "/find беременна"
+
+/mark - добавить стрим в отмеченые(через ответ)
+Example:
+1. Получить стрим с помощью /start или /find
+2. Ответить на запись стрима
+3. Написать в ответе "/mark"
+/unmark - удалить стрим из отмеченых(через ответ)
+/marks - получить список отмеченых стримов
+
 /review some text - to send message to developers. Also, you can reply this command to media files for send media to devs.
+Example: "/review Здравствуйте, могли бы вы помочь мне с..."
+If you send a message with a picture FIRST send the picture and then reply to it with the text "/review issue about this...."
+Example:
+1. Отправить картинку
+2. Ответить на эту же картинку
+3. Написать в ответе "/review Здравствуйте, могли бы вы помочь мне с..."
+
 """
 VIPHELP_CMD = """
 /vipinfo - get raw info about msg
@@ -74,6 +95,7 @@ VIPHELP_CMD = """
 /broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
 """
 NOTIFICATIONS_CMD = "Set the notifications"
+MARKS_CMD = "Pick the marked stream"
 UNKNOW_CMD = "Unknow command =/\nEnter /help to get list of commands"
 
 PICK_MSG = [

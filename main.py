@@ -25,7 +25,7 @@ from aiogram.dispatcher.filters.builtin import IDFilter
 from aiogram.dispatcher.handler import CancelHandler, current_handler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.utils.executor import start_polling
-from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, BotBlocked, Throttled
+from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, BotBlocked, Throttled, BadRequest
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from streamlink import Streamlink, StreamError, PluginError, NoPluginError
@@ -590,6 +590,99 @@ def delChat(chat_id, platform, streamer_id, db, cur):
 
     return True
 
+def addMark(user_id, reply, db, cur):
+    if not reply.caption: return False
+
+    #get stream id
+    cur.execute(f"""
+        SELECT id FROM streams WHERE caption=%s
+    """, [reply.caption])
+
+    result = cur.fetchone()
+    if not result: return None
+
+    stream_id = result['id']
+
+    cur.execute("""
+        INSERT INTO marks(
+            user_id,
+            stream_id
+        ) VALUES(%s,%s)
+    """, [
+        user_id,
+        stream_id
+    ])
+    db.commit()
+
+    return True
+
+def delMark(user_id, reply, db, cur):
+    if not reply.caption: return False
+
+    #get stream id
+    cur.execute(f"""
+        SELECT id FROM streams WHERE caption=%s
+    """, [reply.caption])
+
+    result = cur.fetchone()
+    if not result: return None
+
+    stream_id = result['id']
+
+    cur.execute("""
+        DELETE FROM marks
+        WHERE user_id=%s AND stream_id=%s
+        LIMIT 1
+    """, [
+        user_id,
+        stream_id
+    ])
+    db.commit()
+
+    return True
+
+def getMarks(user_id, page, db, cur):
+    page = int(page)
+    keys = []
+
+    #select mysql request
+    cur.execute("""
+        SELECT stream_id FROM marks WHERE user_id=%s
+    """, [user_id])
+    results = cur.fetchall()
+    
+    for result in results[(page-1)*10:page*10]:
+        cur.executemany("""
+            SELECT caption, author, day, month, year, part FROM streams WHERE id=%s
+        """, [result['stream_id']])
+        result = cur.fetchone()
+
+        if(result['part']):
+            keys.append([IKB(
+                text=f"{result['caption']}",
+                callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
+            )])
+        else:
+            keys.append([IKB(
+                text=f"{result['caption']}",
+                callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}"
+            )])
+
+    #add control buttons
+    keys.append([])
+
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+
+    if page>1:#previos page button
+        keys[-1].append( IKB(text=uic.PREV, callback_data=f"marks@{user_id}@{page-1}") )
+
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+
+    if page <= (len(results)-1)//10: #next page button
+        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"marks@{user_id}@{page+1}") )
+
+    return InlineKeyboardMarkup(inline_keyboard = keys)
+
 def get_streamers():
     with open(CONFIGS['streamlink']['streamers'],"r",encoding='utf-8') as f:
         return json.load(f)
@@ -700,7 +793,6 @@ async def broadcastText(bot, text, db):
     else:
         LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}.")
         return f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}."
-
 
 async def broadcastStream(bot, streamer, text, db):
 
@@ -852,6 +944,12 @@ def start():
                 streamer_id Varchar(64)     NOT NULL
             )
         """)
+        dbcursor.execute("""
+            CREATE TABLE IF NOT EXISTS marks (
+                user_id     BigInt          NOT NULL,
+                stream_id   Int             NOT NULL
+            )
+        """)
         database.commit()
 
     #create bot
@@ -889,7 +987,7 @@ def start():
         await message.reply(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
 
     @dispatcher.message_handler(commands=["find"])
-    async def notifications_handler(message: types.Message):
+    async def find_handler(message: types.Message):
         #processing command /find
         #get streams from db
         #and
@@ -912,7 +1010,7 @@ def start():
         return
 
     @dispatcher.message_handler(commands=["review"])
-    async def notifications_handler(message: types.Message):
+    async def review_handler(message: types.Message):
         #processing command /find
         #get streams from db
         #and
@@ -929,14 +1027,51 @@ def start():
             await bot.send_message(CONFIGS['telegram']['dashboard'], f"Review from {message.from_user.mention}(user: {message.from_user.id}, chat: {message.chat.id}){'[is a bot]' if message.from_user.is_bot else ''}")
 
             await message.answer(uic.SENDED)
-        except:
+        except BadRequest:
             await message.answer(uic.FORWARD_ERROR)
-            raise
+        except:
+            await message.answer(uic.ERROR)
         return
 
     @dispatcher.message_handler(commands=["info"])
     async def send_info(message: types.Message):
         await message.answer("```\n"+pformat(message.to_python())+"```", parse_mode="markdown")
+
+    @dispatcher.message_handler(commands=["mark"])
+    async def addMark_handler(message: types.Message):
+        if message.reply_to_message is None:
+            await message.reply(uic.REPLY_NOT_FOUND)
+            return
+
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            succsces = addMark(message.from_user.id, message.reply_to_message, database, dbcursor)
+
+        if succsces:
+            await message.reply(uic.ADDED)
+        else:
+            await message.reply(uic.WRONG)
+
+    @dispatcher.message_handler(commands=["unmark"])
+    async def addMark_handler(message: types.Message):
+        if message.reply_to_message is None:
+            await message.reply(uic.REPLY_NOT_FOUND)
+            return
+
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            succsces = delMark(message.from_user.id, message.reply_to_message, database, dbcursor)
+
+        if succsces:
+            await message.reply(uic.DELETED)
+        else:
+            await message.reply(uic.WRONG)
+
+    @dispatcher.message_handler(commands=["marks"])
+    async def addMark_handler(message: types.Message):
+        with database, database.cursor() as dbcursor:
+            keyboard = getMarks(message.from_user.id, 1, database, dbcursor)
+        await message.reply(uic.MARKS_CMD, reply_markup=keyboard)
 
 
     #DASHBOARD COMMANDS
@@ -1193,6 +1328,18 @@ def start():
                 await callback_query.message.edit_text(uic.LATESTS, reply_markup=keyboard)
             except MessageNotModified:
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
+            return
+
+        if(args[0] == 'marks'):
+            await callback_query.answer(uic.WAIT, show_alert=False)
+
+            with database, database.cursor() as dbcursor:
+                keyboard = getMarks(args[1], args[2], database, dbcursor)#args 1: user_id, args 2: page
+
+            try:
+                await callback_query.message.edit_text(uic.MARKS_CMD, reply_markup=keyboard)
+            except MessageNotModified:
+                await callback_query.answer(uic.WRONG, show_alert=False)
             return
 
         if(len(args) < 5):
