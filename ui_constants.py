@@ -1,4 +1,6 @@
+import time
 import aiogram.utils.markdown as md
+
 
 NO_CONFIG_MESSAGE = """
   Please create config.ini:
@@ -61,6 +63,7 @@ HELP_CMD = """
 /start - to get keyboard with streams
 /help - to get list of commands
 /notifications - to set notifications about stream
+/lastup - shows date of the last stream of all streamers
 /find some text - to find streams by name
 Example: "/find беременна"
 
@@ -103,6 +106,7 @@ PICK_MSG = [
 ]
 
 LATESTS = "Latests..."
+LASTUP = "Dates of the last streams (мск):"
 VIDEOS = "Видео с ютуба - Dawg"
 VIDEOS2 = "Видео с ютуба - Alison"
 
@@ -113,3 +117,7 @@ def build_stream_text(streamer):
 
 def build_review_info(message):
     return f"Review from {md.quote_html(message.from_user.mention)}(user: {md.hcode(message.from_user.id)}, chat: {md.hcode(message.chat.id)}){'[is a bot]' if message.from_user.is_bot else ''}"
+
+TIME_FORMAT = "%d.%m.%y %H:%M"
+def build_last_stream(streamer):
+    return f"{streamer['name']:25} {time.strftime(TIME_FORMAT,time.gmtime(streamer['lastup']))}\n\n"

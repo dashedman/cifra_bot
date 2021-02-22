@@ -16,6 +16,7 @@ from pprint import pprint, pformat
 from pymysql.connections import Connection
 from pymysql.cursors import DictCursor
 
+import aiogram.utils.markdown as md
 from aiogram import Bot, Dispatcher, types
 from aiogram.types.message import Message
 from aiogram.types.inline_keyboard import InlineKeyboardMarkup, InlineKeyboardButton as IKB
@@ -671,7 +672,7 @@ def getMarks(user_id, page, db, cur):
     #add control buttons
     keys.append([])
 
-    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+    keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"marks@{user_id}@{page}")) #back button
 
     if page>1:#previos page button
         keys[-1].append( IKB(text=uic.PREV, callback_data=f"marks@{user_id}@{page-1}") )
@@ -732,6 +733,41 @@ def getNotifKeyboard(chat_id, page, db, cur):
         )
     """
     return InlineKeyboardMarkup(inline_keyboard = keys)
+
+def getLastUp():
+    info_table = ""
+
+    #select streamers from json
+    streamers = get_streamers()
+    for streamer in streamers:#[(page-1)*10:page*10]
+        info_table += uic.build_last_stream(streamer)
+
+    """
+        keys.append([IKB(
+            text=f"{uic.YES if notif_on else uic.NO} {streamer['name']}",
+            callback_data=f"lastup@{streamer['platform']}@{streamer['id']}"
+        )])
+
+        -----------------------------------------------
+        #add control buttons
+        keys.append([])
+
+        keys[-1].append( #previos page button
+            IKB(text=uic.PREV, callback_data=f"notifset@{page-1}")
+            if page>1
+            else IKB(text=uic.STOP, callback_data=f"pass")
+        )
+        keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+        keys[-1].append( #next page button
+            IKB(text=uic.NEXT, callback_data=f"notifset@{page+1}")
+            if page < len(streamers)//10
+            else IKB(text=uic.STOP, callback_data=f"pass")
+        )
+
+        ------------------------------------------------
+        return InlineKeyboardMarkup(inline_keyboard = keys)
+    """
+    return info_table
 
 async def broadcastText(bot, text, db):
 
@@ -883,6 +919,7 @@ async def streams_demon(bot, db):
             online, streamer = await cheker
 
             if online and not streamer["online"]:
+                streamer['lastup'] = time.time()
                 await broadcastStream(bot, streamer, uic.build_stream_text(streamer), db)
 
             if(streamer["online"] != online):
@@ -985,6 +1022,11 @@ def start():
         with database, database.cursor() as dbcursor:
             keyboard = getNotifKeyboard(message.chat.id, 1, database, dbcursor)
         await message.reply(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
+
+    @dispatcher.message_handler(commands=["lastup"])
+    async def notifications_handler(message: types.Message):
+        last_up_info = getLastUp()
+        await message.reply(uic.LASTUP+"\n"+md.hpre(last_up_info), parse_mode = "html")
 
     @dispatcher.message_handler(commands=["find"])
     async def find_handler(message: types.Message):
