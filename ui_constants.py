@@ -1,3 +1,5 @@
+import aiogram.utils.markdown as md
+
 NO_CONFIG_MESSAGE = """
   Please create config.ini:
 -------------------------------------------------------------------------------
@@ -108,3 +110,6 @@ BOTTOM_KEYBOARD = "/start"
 
 def build_stream_text(streamer):
     return f"👁 Стример {streamer['name']} запустил свою трансляцию, ссылка: https://{streamer['platform']}/{streamer['id']}"
+
+def build_review_info(message):
+    return f"Review from {md.quote_html(message.from_user.mention)}(user: {md.hcode(message.from_user.id)}, chat: {md.hcode(message.chat.id)}){'[is a bot]' if message.from_user.is_bot else ''}"

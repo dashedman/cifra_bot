@@ -650,7 +650,7 @@ def getMarks(user_id, page, db, cur):
         SELECT stream_id FROM marks WHERE user_id=%s
     """, [user_id])
     results = cur.fetchall()
-    
+
     for result in results[(page-1)*10:page*10]:
         cur.executemany("""
             SELECT caption, author, day, month, year, part FROM streams WHERE id=%s
@@ -1024,13 +1024,14 @@ def start():
             if(message.reply_to_message is not None):
                 await message.reply_to_message.forward(CONFIGS['telegram']['dashboard'])
             await message.forward(CONFIGS['telegram']['dashboard'])
-            await bot.send_message(CONFIGS['telegram']['dashboard'], f"Review from {message.from_user.mention}(user: {message.from_user.id}, chat: {message.chat.id}){'[is a bot]' if message.from_user.is_bot else ''}")
+            await bot.send_message(CONFIGS['telegram']['dashboard'], uic.build_review_info(message), parse_mode="html")
 
             await message.answer(uic.SENDED)
         except BadRequest:
             await message.answer(uic.FORWARD_ERROR)
         except:
             await message.answer(uic.ERROR)
+            raise
         return
 
     @dispatcher.message_handler(commands=["info"])
