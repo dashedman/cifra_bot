@@ -740,7 +740,10 @@ def getLastUp():
     #select streamers from json
     streamers = get_streamers()
     for streamer in streamers:#[(page-1)*10:page*10]
-        info_table += uic.build_last_stream(streamer)
+        info_table += (
+            uic.build_last_stream(streamer)+
+            "\n"
+        )
 
     """
         keys.append([IKB(

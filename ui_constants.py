@@ -120,4 +120,4 @@ def build_review_info(message):
 
 TIME_FORMAT = "%d.%m.%y %H:%M"
 def build_last_stream(streamer):
-    return f"{streamer['name']:25} {time.strftime(TIME_FORMAT,time.gmtime(streamer['lastup']))}\n\n"
+    return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT,time.gmtime(streamer['lastup'])):^25}\n"
