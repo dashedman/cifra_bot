@@ -106,7 +106,8 @@ PICK_MSG = [
 ]
 
 LATESTS = "Latests..."
-LASTUP = "Dates of the last streams (мск):"
+#LASTUP = f"Dates of the last streams (UTC{-1*time.timezone//3600:+}):"
+LASTUP = f"Dates of the last streams (UTC+3):"
 VIDEOS = "Видео с ютуба - Dawg"
 VIDEOS2 = "Видео с ютуба - Alison"
 
@@ -119,5 +120,6 @@ def build_review_info(message):
     return f"Review from {md.quote_html(message.from_user.mention)}(user: {md.hcode(message.from_user.id)}, chat: {md.hcode(message.chat.id)}){'[is a bot]' if message.from_user.is_bot else ''}"
 
 TIME_FORMAT = "%d.%m.%y %H:%M"
+TIMEZONE = 3*60*60
 def build_last_stream(streamer):
-    return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT,time.gmtime(streamer['lastup'])):^25}\n"
+    return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT, time.gmtime(streamer['lastup'] + TIMEZONE)):^25}\n"

@@ -997,7 +997,7 @@ def start():
     storage = MemoryStorage()
     dispatcher = Dispatcher(bot, storage=storage)
 
-    middleware = ThrottlingMiddleware(throttling_rate_limit=0)
+    middleware = ThrottlingMiddleware(throttling_rate_limit=7)
     dispatcher.middleware.setup(middleware)
 
     #bot handlers
