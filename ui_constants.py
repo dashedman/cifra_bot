@@ -119,7 +119,7 @@ def build_stream_text(streamer):
 def build_review_info(message):
     return f"Review from {md.quote_html(message.from_user.mention)}(user: {md.hcode(message.from_user.id)}, chat: {md.hcode(message.chat.id)}){'[is a bot]' if message.from_user.is_bot else ''}"
 
-TIME_FORMAT = "%d.%m.%y %H:%M"
+TIME_FORMAT = "%d/%m/%y %H:%M"
 TIMEZONE = 3*60*60
 def build_last_stream(streamer):
     return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT, time.gmtime(streamer['lastup'] + TIMEZONE)):^25}\n"

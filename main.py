@@ -899,7 +899,7 @@ async def streams_demon(bot, db):
                         return True #online
                 except PluginError as err:
                     #если проблемы с интернетом
-                    await asyncio.sleep(60)
+                    await asyncio.sleep(5)
                 level += 1
                 #если говорит что стрим оффлайн проверим еще раз
             return False
