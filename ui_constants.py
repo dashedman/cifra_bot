@@ -83,7 +83,7 @@ VIPHELP_CMD = """
 /vipinfo - get raw info about msg
 /viphelp - get help for admin commands
 
-/add streamer data [, part] - add stream in reply to `streamer`, with `data` in dd.mm.yyyy, `part` of stream optional
+/add streamer date [, part] - add stream in reply to `streamer`, with `date` in dd.mm.yyyy, `part` of stream optional
 /addv priority - add Dwag's video, with integer `priority` order
 /addv2 priority - add Alison's video, with integer `priority` order
 
@@ -93,6 +93,8 @@ VIPHELP_CMD = """
 
 /rep chat_id text - send `text` to the chat with `chat_id`, from bot face
 /broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
+
+/get streamer date - get all parts of streams in reply to `streamer`, with `date` in dd.mm.yyyy
 """
 NOTIFICATIONS_CMD = "Set the notifications"
 MARKS_CMD = "Pick the marked stream"

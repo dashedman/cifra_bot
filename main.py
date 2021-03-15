@@ -200,6 +200,16 @@ def getStream(arguments, db, cur):
         """, arguments)
     return cur.fetchone()
 
+def getStreamsByArgs(args, db, cur):
+    streamer = args[0]
+    date = time.strptime(args[1], "%d.%m.%Y")
+    unix_data = time.mktime(date)
+
+    cur.execute("""
+        SELECT file_id, caption FROM streams WHERE author = %s AND year = %s AND month = %s AND day = %s
+    """, [ streamer, date.tm_year, date.tm_mon, date.tm_mday ])
+    return cur.fetchall()
+
 def getVideo(id, db, cur):
     cur.execute("""
         SELECT file_id, caption FROM videos WHERE id = %s
@@ -921,6 +931,7 @@ async def streams_demon(bot, db):
         for cheker in asyncio.as_completed(chekers):
             online, streamer = await cheker
 
+            LOGGER.debug(f"{streamer['name']} online - [{streamer['online']} -> {online}]")
             if online and not streamer["online"]:
                 streamer['lastup'] = time.time()
                 await broadcastStream(bot, streamer, uic.build_stream_text(streamer), db)
@@ -1118,6 +1129,24 @@ def start():
         with database, database.cursor() as dbcursor:
             keyboard = getMarks(message.from_user.id, 1, database, dbcursor)
         await message.reply(uic.MARKS_CMD, reply_markup=keyboard)
+
+    @dispatcher.message_handler(commands=["get"])
+    async def del_handler(message: types.Message):
+        #processing command /del caption
+        command, args = message.get_full_command()
+        args = re.sub(r"\\\s","@@",args)
+        args = args.split()
+        args = [re.sub(r"@@"," ",arg) for arg in args]
+
+        succsces = None
+        with database, database.cursor() as dbcursor:
+            streams = getStreamsByArgs(args, database, dbcursor)
+
+        if streams:
+            for stream in streams:
+                await message.answer_video(video=stream['file_id'], caption=stream['caption'])
+        else:
+            await message.reply(uic.NOT_FOUND)
 
 
     #DASHBOARD COMMANDS
