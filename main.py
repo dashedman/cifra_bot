@@ -582,24 +582,63 @@ def delVideo2(caption, db, cur):
 
 def addChat(chat_id, platform, streamer_id, db, cur):
     cur.execute("""
-        INSERT INTO chats(
-            id, platform, streamer_id
-        ) VALUES(%s,%s,%s)
-    """, [
-        chat_id, platform, streamer_id
-    ])
-    db.commit()
-
-    return True
-
-def delChat(chat_id, platform, streamer_id, db, cur):
-    cur.execute("""
-        DELETE FROM chats
-        WHERE id=%s AND platform=%s AND streamer_id=%s
+        SELECT * FROM chats WHERE id=%s AND platform=%s AND streamer_id=%s
     """, [chat_id, platform, streamer_id])
+
+    if not cur.fetchone():
+        cur.execute("""
+            INSERT INTO chats(
+                id, platform, streamer_id
+            ) VALUES(%s,%s,%s)
+        """, [
+            chat_id, platform, streamer_id
+        ])
+        db.commit()
+        return True
+    return False
+
+def delChat(chat_id, platform, streamer_id, db, cur, limit = None):
+    if limit is None:
+        cur.execute("""
+            DELETE FROM chats
+            WHERE id=%s AND platform=%s AND streamer_id=%s
+        """, [chat_id, platform, streamer_id])
+    else:
+        cur.execute("""
+            DELETE FROM chats
+            WHERE id=%s AND platform=%s AND streamer_id=%s LIMIT %s
+        """, [chat_id, platform, streamer_id, limit])
     db.commit()
 
     return True
+
+async def correctChats(bot, db, cur):
+    cur.execute("""
+        SELECT id, platform, streamer_id FROM chats
+    """)
+    chats = cur.fetchall()
+    unique_chats = set()
+    unique_streamers = {(streamer['platform'], streamer['id']) for streamer in get_streamers()}
+
+    old_counter = 0
+    twink_counter = 0
+
+    for chat in chats:
+        if (chat['platform'], chat['streamer_id']) not in unique_streamers:
+            delChat(chat['id'], chat['platform'], chat['streamer_id'], db, cur, limit = 1)
+            old_counter += 1
+            continue
+
+        tuple_key = (chat['id'], chat['platform'], chat['streamer_id'])
+        if tuple_key in unique_chats:
+            delChat(chat['id'], chat['platform'], chat['streamer_id'], db, cur, limit = 1)
+            twink_counter += 1
+            continue
+
+        unique_chats.add(tuple_key)
+        await asyncio.sleep(0)
+
+    return old_counter, twink_counter
 
 def addMark(user_id, reply, db, cur):
     if not reply.caption: return False
@@ -1302,6 +1341,20 @@ def start():
 
         await message.reply(f"Start broadcast...")
         result = await broadcastText(bot, text, database)
+        await message.reply(result)
+
+    @dispatcher.message_handler(dashboard_filter, commands=["fixnotifs"])
+    async def fixnotifs_handler(message: types.Message):
+        #processing command /del caption
+        #get streamers from db
+        #and
+        #construct keyboard
+        result = uic.ERROR
+
+        await message.reply(f"Start fixing...")
+        with database, database.cursor() as cur:
+            olds, twinks = await correctChats(bot, database, cur)
+            result = f"Chat fixed succesfull! Deleted:\nOld notifs - {olds}\nTwinks - {twinks}"
         await message.reply(result)
 
 

@@ -95,6 +95,7 @@ VIPHELP_CMD = """
 /broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
 
 /get streamer date - get all parts of streams in reply to `streamer`, with `date` in dd.mm.yyyy
+/fixnotifs - delete notif users twinks and notifs on old streamers
 """
 NOTIFICATIONS_CMD = "Set the notifications"
 MARKS_CMD = "Pick the marked stream"
