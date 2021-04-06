@@ -882,7 +882,7 @@ async def broadcastText(bot, text, db):
         LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}.")
         return f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}."
 
-async def broadcastStream(bot, streamer, text, db):
+async def broadcastStream(bot, streamer, text, broadcast_id, db):
 
     async def stableSend(chat_id, text):
         try:
@@ -910,7 +910,7 @@ async def broadcastStream(bot, streamer, text, db):
         return False
 
 
-    LOGGER.info(f"Broadcast for {streamer['name']}...")
+    LOGGER.info(f"Broadcast_[{broadcast_id}] for {streamer['name']}...")
 
     with db, db.cursor() as cur:
         cur.execute("""
@@ -965,6 +965,7 @@ async def streams_demon(bot, db):
         UPDATE_FLAG = False
         streamers = get_streamers()
         chekers = {check_stream(streamer, 2) for streamer in streamers}
+        check_id = random.randint(1,999)
 
         #итератор в порядке завершения проверок
         for cheker in asyncio.as_completed(chekers):
@@ -973,7 +974,7 @@ async def streams_demon(bot, db):
             LOGGER.debug(f"{streamer['name']} online - [{streamer['online']} -> {online}]")
             if online and not streamer["online"]:
                 streamer['lastup'] = time.time()
-                await broadcastStream(bot, streamer, uic.build_stream_text(streamer), db)
+                await broadcastStream(bot, streamer, uic.build_stream_text(streamer), check_id, db)
 
             if(streamer["online"] != online):
                 UPDATE_FLAG = True
