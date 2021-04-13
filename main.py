@@ -45,7 +45,7 @@ CONFIGS = ConfigParser()
 CONFIGS.read("config.ini")
 
 #logining
-file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=20480, backupCount=5)
+file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=20480, backupCount=7)
 console_out = logging.StreamHandler()
 
 logging.basicConfig(
@@ -821,6 +821,19 @@ def getLastUp():
     """
     return info_table
 
+def getCooldowns():
+    info_table = ""
+
+    #select streamers from json
+    streamers = get_streamers()
+    for streamer in streamers:#[(page-1)*10:page*10]
+        info_table += (
+            uic.build_cooldown(streamer, max(0, int(CONFIGS['streamlink']['cooldown']) - int( time.time() - streamer['lastdown'] )//60))+
+            "\n"
+        )
+        
+    return info_table
+
 async def broadcastText(bot, text, db):
 
     async def stableSend(chat_id, platform, streamer_id, text):
@@ -959,6 +972,8 @@ async def streams_demon(bot, db):
     streamers = get_streamers()
     for streamer in streamers:
         streamer['online'] = True
+        streamer.setdefault('lastup', 0)
+        streamer.setdefault('lastdown', 0)
     set_streamers(streamers)
 
     while ALIVE:
@@ -973,8 +988,18 @@ async def streams_demon(bot, db):
 
             LOGGER.debug(f"{streamer['name']} online - [{streamer['online']} -> {online}]")
             if online and not streamer["online"]:
-                streamer['lastup'] = time.time()
-                await broadcastStream(bot, streamer, uic.build_stream_text(streamer), check_id, db)
+                if time.time() - streamer['lastdown'] > 60*int(CONFIGS['streamlink']['cooldown']): # one hour
+                    streamer['lastup'] = time.time()
+                    await broadcastStream(bot, streamer, uic.build_stream_text(streamer), check_id, db)
+                else:
+                    LOGGER.warning(f"Stream broadcast[{check_id}] cooldown({time.time() - streamer['lastdown']}) for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
+                    await bot.send_message(
+                        CONFIGS['telegram']['dashboard'],
+                        f"Stream broadcast[{check_id}] cooldown({int(time.time() - streamer['lastdown'])}) for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}"
+                    )
+
+            if streamer["online"] and not online:
+                streamer['lastdown'] = time.time()
 
             if(streamer["online"] != online):
                 UPDATE_FLAG = True
@@ -1200,6 +1225,30 @@ def start():
         #processing command /help
         await message.reply(uic.VIPHELP_CMD)
 
+    @dispatcher.message_handler(dashboard_filter, commands=["log"])
+    async def log_handler(message: types.Message):
+        #processing command /log
+        await message.chat.do('upload_document')
+        await message.answer_document(document=types.InputFile('logs.log'))
+
+    @dispatcher.message_handler(dashboard_filter, commands=["logs"])
+    async def all_logs_handler(message: types.Message):
+        #processing command /logs
+        await message.chat.do('upload_document')
+        group = types.MediaGroup()
+
+        #main log
+        group.attach_document(types.InputFile('logs.log'), 'Last Logs')
+
+        #other logs
+        for i in range(1,8):
+            try:
+                group.attach_document(types.InputFile(f'logs.log.{i}'))
+            except FileNotFoundError:
+                break
+
+        await message.answer_media_group(media=group)
+
     @dispatcher.message_handler(dashboard_filter, commands=["add"])
     async def add_handler(message: types.Message):
         #processing command /add streamer data [, part]
@@ -1343,6 +1392,19 @@ def start():
         await message.reply(f"Start broadcast...")
         result = await broadcastText(bot, text, database)
         await message.reply(result)
+
+    @dispatcher.message_handler(dashboard_filter, commands=["cooldowns"])
+    async def cooldowns_handler(message: types.Message):
+        #processing command /del caption
+        #get streamers from db
+        #and
+        #construct keyboard
+        command, text = message.get_full_command()
+        result = uic.WRONG
+        try:
+            result = uic.COOLDOWN+"\n"+md.hpre(getCooldowns())
+        finally:
+            await message.reply(result, parse_mode = "html")
 
     @dispatcher.message_handler(dashboard_filter, commands=["fixnotifs"])
     async def fixnotifs_handler(message: types.Message):

@@ -83,6 +83,9 @@ VIPHELP_CMD = """
 /vipinfo - get raw info about msg
 /viphelp - get help for admin commands
 
+/log - get last log
+/logs - get all logs
+
 /add streamer date [, part] - add stream in reply to `streamer`, with `date` in dd.mm.yyyy, `part` of stream optional
 /addv priority - add Dwag's video, with integer `priority` order
 /addv2 priority - add Alison's video, with integer `priority` order
@@ -94,6 +97,7 @@ VIPHELP_CMD = """
 /rep chat_id text - send `text` to the chat with `chat_id`, from bot face
 /broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
 
+/cooldowns - get streamer broadcast cooldowns
 /get streamer date - get all parts of streams in reply to `streamer`, with `date` in dd.mm.yyyy
 /fixnotifs - delete notif users twinks and notifs on old streamers
 """
@@ -111,6 +115,7 @@ PICK_MSG = [
 LATESTS = "Latests..."
 #LASTUP = f"Dates of the last streams (UTC{-1*time.timezone//3600:+}):"
 LASTUP = f"Dates of the last streams (UTC+3):"
+COOLDOWN = f"Cooldowns of the streams:"
 VIDEOS = "Видео с ютуба - Dawg"
 VIDEOS2 = "Видео с ютуба - Alison"
 
@@ -126,3 +131,6 @@ TIME_FORMAT = "%d/%m/%y %H:%M"
 TIMEZONE = 3*60*60
 def build_last_stream(streamer):
     return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT, time.gmtime(streamer['lastup'] + TIMEZONE)):^25}\n"
+
+def build_cooldown(streamer, cooldown):
+    return f"{streamer['name']:^25}\n{cooldown:^25}\n"
