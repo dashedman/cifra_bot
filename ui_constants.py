@@ -40,9 +40,9 @@ NEXT = "➡️"
 STOP = "⛔️"
 REFRESH = "🔄"
 
-ADDED = "Succsesful added!"
-DELETED = "Succsesful deleted!"
-SENDED = "Succsesful sended!"
+ADDED = "Succsesfully added!"
+DELETED = "Succsesfully deleted!"
+SENDED = "Succsesfully sent!"
 
 ERROR = "Get some error("
 FORWARD_ERROR = """Ошибка!
@@ -50,11 +50,11 @@ FORWARD_ERROR = """Ошибка!
 Так же вы можете связатся с нами другими способами, подробнее в описании.
 """
 WRONG = "Wrong command("
-NOT_FOUND = "Not founded("
+NOT_FOUND = "Not found("
 REPLY_NOT_FOUND = "Reply stream is not founded("
 NOTHING_NEW = "Nothing is new."
 WAIT = "Please wait..."
-FINDED = "Finded!"
+FINDED = "Found!"
 FIND_NO_ARGS = "Please write '/find some text' to seek streams.\nMinimal length of text 3!\nMaximal length of text 30!"
 TO_SMALL = "Message is to small"
 
