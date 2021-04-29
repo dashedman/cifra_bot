@@ -831,7 +831,7 @@ def getCooldowns():
             uic.build_cooldown(streamer, max(0, int(CONFIGS['streamlink']['cooldown']) - int( time.time() - streamer['lastdown'] )//60))+
             "\n"
         )
-        
+
     return info_table
 
 async def broadcastText(bot, text, db):
@@ -880,7 +880,7 @@ async def broadcastText(bot, text, db):
             repeated_counter += 1
             continue
 
-        if await stableSend(recipient['id'], recipient['platform'],  recipient['streamer_id'], text):
+        if (await stableSend(recipient['id'], recipient['platform'],  recipient['streamer_id'], text)):
             successfull_counter += 1
             repeated.add(recipient['id'])
 
@@ -889,11 +889,11 @@ async def broadcastText(bot, text, db):
 
 
     if(successfull_counter+repeated_counter == len(recipients)):
-        LOGGER.info(f"Broadcast succesfull!")
-        return f"Broadcast succesfull!"
+        LOGGER.info(f"Broadcast succesfull!\n\tAmount: {successfull_counter}\n\tRepeaded: {repeated_counter}.")
+        return f"Broadcast succesfull!\n\tAmount: {successfull_counter}\n\tRepeaded: {repeated_counter}."
     else:
-        LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}.")
-        return f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n Repeaded: {repeated_counter}."
+        LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n\tRepeaded: {repeated_counter}.")
+        return f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n\tRepeaded: {repeated_counter}."
 
 async def broadcastStream(bot, streamer, text, broadcast_id, db):
 
