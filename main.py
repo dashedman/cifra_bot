@@ -104,6 +104,7 @@ class ThrottlingMiddleware(BaseMiddleware):
             limit = self.rate_limit
             key = f"{self.prefix}_message"
 
+        if message.chat.id == CONFIGS['telegram'].getint('dashboard'): return
         # Use Dispatcher.throttle method.
         try:
             await dispatcher.throttle(key, rate=limit)
