@@ -829,7 +829,13 @@ def getCooldowns():
     streamers = get_streamers()
     for streamer in streamers:#[(page-1)*10:page*10]
         info_table += (
-            uic.build_cooldown(streamer, max(0, int(CONFIGS['streamlink']['cooldown']) - int( time.time() - streamer['lastdown'] )//60))+
+            uic.build_cooldown(
+                streamer,
+                time.gmtime(max(
+                    0.0,
+                    (streamer['lastdown'] + CONFIGS['streamlink'].getfloat('cooldown')) - time.time()
+                ))
+            )+
             "\n"
         )
 
@@ -989,7 +995,7 @@ async def streams_demon(bot, db):
 
             LOGGER.debug(f"{streamer['name']} online - [{streamer['online']} -> {online}]")
             if online and not streamer["online"]:
-                if time.time() - streamer['lastdown'] > 60*int(CONFIGS['streamlink']['cooldown']): # one hour
+                if time.time() - streamer['lastdown'] > CONFIGS['streamlink'].getfloat('cooldown'): # one hour
                     streamer['lastup'] = time.time()
                     await broadcastStream(bot, streamer, uic.build_stream_text(streamer), check_id, db)
                 else:
@@ -1009,7 +1015,6 @@ async def streams_demon(bot, db):
         if UPDATE_FLAG: set_streamers(streamers)
 
         await asyncio.sleep(30)
-
 
 
 #main function
@@ -1131,7 +1136,7 @@ def start():
             pass
         return
 
-    @dispatcher.message_handler(commands=["review"])
+    @dispatcher.message_handler(commands=["review","r"])
     async def review_handler(message: types.Message):
         #processing command /find
         #get streams from db
@@ -1150,7 +1155,7 @@ def start():
 
             await message.answer(uic.SENDED)
         except BadRequest:
-            await message.answer(uic.FORWARD_ERROR)
+            await message.answer(uic.WRONG)
         except:
             await message.answer(uic.ERROR)
             raise
@@ -1225,30 +1230,6 @@ def start():
     async def help_handler(message: types.Message):
         #processing command /help
         await message.reply(uic.VIPHELP_CMD)
-
-    @dispatcher.message_handler(dashboard_filter, commands=["log"])
-    async def log_handler(message: types.Message):
-        #processing command /log
-        await message.chat.do('upload_document')
-        await message.answer_document(document=types.InputFile('logs.log'))
-
-    @dispatcher.message_handler(dashboard_filter, commands=["logs"])
-    async def all_logs_handler(message: types.Message):
-        #processing command /logs
-        await message.chat.do('upload_document')
-        group = types.MediaGroup()
-
-        #main log
-        group.attach_document(types.InputFile('logs.log'), 'Last Logs')
-
-        #other logs
-        for i in range(1,8):
-            try:
-                group.attach_document(types.InputFile(f'logs.log.{i}'))
-            except FileNotFoundError:
-                break
-
-        await message.answer_media_group(media=group)
 
     @dispatcher.message_handler(dashboard_filter, commands=["add"])
     async def add_handler(message: types.Message):

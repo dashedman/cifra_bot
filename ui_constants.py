@@ -76,7 +76,9 @@ Example:
 /marks - get list with marked (liked) video
 
 /review some text -  to send message an admin. You NOT must write on English :)
+Shortcut: /r
 Example: "/review hello, can you help me with..."
+Example: "/r hello, can you help me with..."
 If you send a message with a picture FIRST send the picture and then reply to it with the text "/review issue about this...."
 """
 VIPHELP_CMD = """
@@ -132,5 +134,5 @@ TIMEZONE = 3*60*60
 def build_last_stream(streamer):
     return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT, time.gmtime(streamer['lastup'] + TIMEZONE)):^25}\n"
 
-def build_cooldown(streamer, cooldown):
-    return f"{streamer['name']:^25}\n{cooldown:^25}\n"
+def build_cooldown(streamer, cooldown: time.struct_time):
+    return f"{streamer['name']}\n{cooldown.tm_hour}:{cooldown.tm_min}:{cooldown.tm_sec}\n"
