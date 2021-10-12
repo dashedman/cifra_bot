@@ -15,6 +15,8 @@ NO_CONFIG_MESSAGE = """
   [streamlink]
   streamers = streamers.json
   plugins = streamlink_plugins/
+  twitch_cliend_id = abs
+  twitch_secret_key = abs
 
   [telegram]
   token = 123456:ABC-DEF1234ghIkl-zyx57W2v1u123ew11
@@ -123,8 +125,9 @@ VIDEOS2 = "Видео с ютуба - Alison"
 
 BOTTOM_KEYBOARD = "/start"
 
-def build_stream_text(streamer):
-    return f"👁 Стример {streamer['name']} запустил свою трансляцию, ссылка: https://{streamer['platform']}/{streamer['id']}"
+def build_stream_text(streamer, stream_name):
+    return f"👁 {streamer['name']} подрубил стрим {stream_name}\n" \
+           f"https://{streamer['platform']}/{streamer['id']} 👁"
 
 def build_review_info(message):
     return f"Review from {md.quote_html(message.from_user.mention)}(user: {md.hcode(message.from_user.id)}, chat: {md.hcode(message.chat.id)}){'[is a bot]' if message.from_user.is_bot else ''}"
@@ -136,3 +139,6 @@ def build_last_stream(streamer):
 
 def build_cooldown(streamer, cooldown: time.struct_time):
     return f"{streamer['name']}\n{cooldown.tm_hour}:{cooldown.tm_min}:{cooldown.tm_sec}\n"
+
+def added_with_parts(partsBefore, partsAfter):
+    return f'{ADDED}\n {md.hcode(partsBefore)} -> {md.hcode(partsAfter)}'

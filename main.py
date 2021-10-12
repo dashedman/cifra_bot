@@ -1,4 +1,4 @@
-#standart libs
+# standart libs
 import asyncio
 import time
 import sys
@@ -12,7 +12,9 @@ from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
 from pprint import pprint, pformat
 
-#external libs
+# external libs
+from aiohttp_requests import requests
+
 from pymysql.connections import Connection
 from pymysql.cursors import DictCursor
 
@@ -26,17 +28,16 @@ from aiogram.dispatcher.filters.builtin import IDFilter
 from aiogram.dispatcher.handler import CancelHandler, current_handler
 from aiogram.dispatcher.middlewares import BaseMiddleware
 from aiogram.utils.executor import start_polling
-from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, BotBlocked, Throttled, BadRequest
+from aiogram.utils.exceptions import MessageNotModified, TelegramAPIError, UserDeactivated, RetryAfter, ChatNotFound, \
+    BotBlocked, Throttled, BadRequest
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 
 from streamlink import Streamlink, StreamError, PluginError, NoPluginError
 
-#internal libs
+# internal libs
 import ui_constants as uic
 
-
-
-#configs
+# configs
 if not os.path.exists("config.ini"):
     print(uic.NO_CONFIG_MESSAGE)
     exit()
@@ -44,7 +45,7 @@ if not os.path.exists("config.ini"):
 CONFIGS = ConfigParser()
 CONFIGS.read("config.ini")
 
-#logining
+# logining
 file_log = RotatingFileHandler("logs.log", mode='a', maxBytes=20480, backupCount=7)
 console_out = logging.StreamHandler()
 
@@ -55,14 +56,18 @@ logging.basicConfig(
     level=int(CONFIGS['logging']['level']))
 LOGGER = logging.getLogger("bot")
 
-#StreamLink Session
+# StreamLink Session
 SLS = Streamlink()
-#SLS.load_plugins(CONFIGS['streamlink']['plugins'])
+# SLS.load_plugins(CONFIGS['streamlink']['plugins'])
 SLS.set_plugin_option("twitch", "disable_hosting", True)
 SLS.set_plugin_option("twitch", "disable_reruns", True)
 SLS.set_plugin_option("twitch", "disable-ads", True)
 
-#classes
+cliend_id = '0cd7lo7d8v4prh3hhf4b044fphouyt'  # ID приложения (для twitch API - для выгрузки имени стрима)
+secret_key = 'bec7ijgtpgctc1p5lb6nc8b6vozajt'  # Ключ подключения (для twitch API - для выгрузки имени стрима)
+
+
+# classes
 class MyConnection(Connection):
     def __enter__(self):
         if not self.open:
@@ -73,6 +78,7 @@ class MyConnection(Connection):
         self.close()
         if exc_val:
             raise
+
 
 class ThrottlingMiddleware(BaseMiddleware):
     """
@@ -180,18 +186,17 @@ class ThrottlingMiddleware(BaseMiddleware):
 
         # Prevent flooding
         if throttled.exceeded_count == 2:
-            await callback_query.answer("Don't flood. Please wait.", show_alert = False)
+            await callback_query.answer("Don't flood. Please wait.", show_alert=False)
         elif throttled.exceeded_count >= 2:
             pass
 
 
-
-#fuctions
+# fuctions
 def getStream(arguments, db, cur):
     page_number = int(arguments[0])
     arguments = arguments[1:]
 
-    if(len(arguments) >= 5):
+    if (len(arguments) >= 5):
         cur.execute("""
             SELECT file_id, caption FROM streams WHERE author = %s AND year = %s AND month = %s AND day = %s AND part = %s
         """, arguments)
@@ -201,6 +206,7 @@ def getStream(arguments, db, cur):
         """, arguments)
     return cur.fetchone()
 
+
 def getStreamsByArgs(args, db, cur):
     streamer = args[0]
     date = time.strptime(args[1], "%d.%m.%Y")
@@ -208,8 +214,9 @@ def getStreamsByArgs(args, db, cur):
 
     cur.execute("""
         SELECT file_id, caption FROM streams WHERE author = %s AND year = %s AND month = %s AND day = %s
-    """, [ streamer, date.tm_year, date.tm_mon, date.tm_mday ])
+    """, [streamer, date.tm_year, date.tm_mon, date.tm_mday])
     return cur.fetchall()
+
 
 def getVideo(id, db, cur):
     cur.execute("""
@@ -217,11 +224,13 @@ def getVideo(id, db, cur):
     """, id)
     return cur.fetchone()
 
+
 def getVideo2(id, db, cur):
     cur.execute("""
         SELECT file_id, caption FROM videos2 WHERE id = %s
     """, id)
     return cur.fetchone()
+
 
 def getLastStream(arguments, db, cur):
     keys = []
@@ -231,7 +240,7 @@ def getLastStream(arguments, db, cur):
         SELECT file_id, caption, udata, year, month, day, part FROM streams WHERE author = %s ORDER BY udata DESC, part ASC
     """, [author])
     result = cur.fetchone()
-    if(result['part']):
+    if (result['part']):
         keys.append([IKB(
             text=f"{result['caption']}",
             callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
@@ -246,7 +255,7 @@ def getLastStream(arguments, db, cur):
         udata = result['udata']
 
         while (result := cur.fetchone()) and (result['udata'] >= udata):
-            if(result['part']):
+            if (result['part']):
                 keys.append([IKB(
                     text=f"{result['caption']}",
                     callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
@@ -257,22 +266,23 @@ def getLastStream(arguments, db, cur):
                     callback_data=f"1@{author}@{result['year']}@{result['month']}@{result['day']}"
                 )])
 
-    #add control buttons
+    # add control buttons
     keys.append([])
 
-    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1@{author}")) #back button
-    keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"last@{author}")) #refresh button
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1@{author}"))  # back button
+    keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"last@{author}"))  # refresh button
 
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def getKeyboard(arguments, db, cur):
     page_number = int(arguments[0])
     arguments = arguments[1:]
     keys = []
 
-    #select mysql request
-    if(len(arguments) == 0):
-        #add bonus button with videos
+    # select mysql request
+    if (len(arguments) == 0):
+        # add bonus button with videos
         keys.append([
             IKB(
                 text=uic.VIDEOS,
@@ -284,25 +294,24 @@ def getKeyboard(arguments, db, cur):
             )
         ])
 
-
         cur.execute("""
             SELECT DISTINCT author FROM streams
         """)
         results = cur.fetchall()
 
-        for result in results[(page_number-1)*10:page_number*10]:
+        for result in results[(page_number - 1) * 10:page_number * 10]:
             keys.append([IKB(
                 text=result['author'],
                 callback_data=f"1@{result['author']}"
             )])
 
-    elif(len(arguments) == 1):
+    elif (len(arguments) == 1):
         cur.execute(f"""
             SELECT DISTINCT year FROM streams WHERE author = %s ORDER BY year DESC
         """, arguments)
         results = cur.fetchall()
 
-        for result in results[(page_number-1)*10:page_number*10]:
+        for result in results[(page_number - 1) * 10:page_number * 10]:
             keys.append([IKB(
                 text=result['year'],
                 callback_data=f"1@{arguments[0]}@{result['year']}"
@@ -313,25 +322,25 @@ def getKeyboard(arguments, db, cur):
             callback_data=f"last@{arguments[0]}"
         )])
 
-    elif(len(arguments) == 2):
+    elif (len(arguments) == 2):
         cur.execute(f"""
             SELECT DISTINCT month FROM streams WHERE author = %s AND year = %s ORDER BY month ASC
         """, arguments)
         results = cur.fetchall()
 
-        for result in results[(page_number-1)*10:page_number*10]:
+        for result in results[(page_number - 1) * 10:page_number * 10]:
             keys.append([IKB(
                 text=result['month'],
                 callback_data=f"1@{'@'.join(arguments)}@{result['month']}"
             )])
 
-    elif(len(arguments) == 3):
+    elif (len(arguments) == 3):
         cur.execute(f"""
             SELECT caption, day, part FROM streams WHERE author = %s AND year = %s AND month = %s ORDER BY day ASC, part ASC
         """, arguments)
         results = cur.fetchall()
-        for result in results[(page_number-1)*10:page_number*10]:
-            if(result['part']):
+        for result in results[(page_number - 1) * 10:page_number * 10]:
+            if (result['part']):
                 keys.append([IKB(
                     text=f"{result['caption']}",
                     callback_data=f"1@{'@'.join(arguments)}@{result['day']}@{result['part']}"
@@ -342,33 +351,32 @@ def getKeyboard(arguments, db, cur):
                     callback_data=f"1@{'@'.join(arguments)}@{result['day']}"
                 )])
 
-
-    #add control buttons
+    # add control buttons
     keys.append([])
 
-    if(len(arguments) == 0):
-        keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"1")) #back button
-    elif(len(arguments) == 1):
-        keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+    if (len(arguments) == 0):
+        keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"1"))  # back button
+    elif (len(arguments) == 1):
+        keys[-1].append(IKB(text=uic.BACK, callback_data=f"1"))  # back button
     else:
-        keys[-1].append(IKB(text=uic.BACK, callback_data=f"1@{'@'.join(arguments[:-1])}")) #back button
+        keys[-1].append(IKB(text=uic.BACK, callback_data=f"1@{'@'.join(arguments[:-1])}"))  # back button
 
-    if page_number>1: #previos page button
-        keys[-1].append(IKB(text=uic.PREV, callback_data=f"{page_number-1}@{'@'.join(arguments)}"))
+    if page_number > 1:  # previos page button
+        keys[-1].append(IKB(text=uic.PREV, callback_data=f"{page_number - 1}@{'@'.join(arguments)}"))
 
-    keys[-1].append(IKB(text=f"{page_number}", callback_data=f"pass"))# info page button
+    keys[-1].append(IKB(text=f"{page_number}", callback_data=f"pass"))  # info page button
 
-    if page_number <= (len(results)-1)//10:#next page button
-        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"{page_number+1}@{'@'.join(arguments)}"))
+    if page_number <= (len(results) - 1) // 10:  # next page button
+        keys[-1].append(IKB(text=uic.NEXT, callback_data=f"{page_number + 1}@{'@'.join(arguments)}"))
 
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def getFinderKeyboard(expresion, page, db, cur):
     page = int(page)
     keys = []
 
-
-    #select mysql request
+    # select mysql request
     cur.execute(f"""
         SELECT caption, author, day, month, year, part FROM streams WHERE caption LIKE %s ORDER BY udata DESC, part ASC
     """, [f"%{expresion}%"])
@@ -376,8 +384,8 @@ def getFinderKeyboard(expresion, page, db, cur):
     results = cur.fetchall()
     if not results: return None
 
-    for result in results[(page-1)*10:page*10]:
-        if(result['part']):
+    for result in results[(page - 1) * 10:page * 10]:
+        if (result['part']):
             keys.append([IKB(
                 text=f"{result['caption']}",
                 callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
@@ -388,81 +396,83 @@ def getFinderKeyboard(expresion, page, db, cur):
                 callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}"
             )])
 
-
-    #add control buttons
+    # add control buttons
     keys.append([])
 
-    if page>1:#previos page button
-        keys[-1].append( IKB(text=uic.PREV, callback_data=f"find@{expresion}@{page-1}") )
+    if page > 1:  # previos page button
+        keys[-1].append(IKB(text=uic.PREV, callback_data=f"find@{expresion}@{page - 1}"))
 
-    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))  # info page button
 
-    if page <= (len(results)-1)//10: #next page button
-        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"find@{expresion}@{page+1}") )
+    if page <= (len(results) - 1) // 10:  # next page button
+        keys[-1].append(IKB(text=uic.NEXT, callback_data=f"find@{expresion}@{page + 1}"))
 
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def getVideosKeyboard(page, db, cur):
     page = int(page)
     keys = []
 
-    #select mysql request
+    # select mysql request
     cur.execute("""
         SELECT id, caption FROM videos ORDER BY vorder ASC
     """)
     results = cur.fetchall()
 
-    for result in results[(page-1)*10:page*10]:
+    for result in results[(page - 1) * 10:page * 10]:
         keys.append([IKB(
             text=result['caption'],
             callback_data=f"video@{result['id']}"
         )])
 
-    #add control buttons
+    # add control buttons
     keys.append([])
 
-    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1"))  # back button
 
-    if page>1:#previos page button
-        keys[-1].append( IKB(text=uic.PREV, callback_data=f"videos@{page-1}") )
+    if page > 1:  # previos page button
+        keys[-1].append(IKB(text=uic.PREV, callback_data=f"videos@{page - 1}"))
 
-    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))  # info page button
 
-    if page <= (len(results)-1)//10: #next page button
-        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"videos@{page+1}") )
+    if page <= (len(results) - 1) // 10:  # next page button
+        keys[-1].append(IKB(text=uic.NEXT, callback_data=f"videos@{page + 1}"))
 
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def getVideos2Keyboard(page, db, cur):
     page = int(page)
     keys = []
 
-    #select mysql request
+    # select mysql request
     cur.execute("""
         SELECT id, caption FROM videos2 ORDER BY vorder ASC
     """)
     results = cur.fetchall()
 
-    for result in results[(page-1)*10:page*10]:
+    for result in results[(page - 1) * 10:page * 10]:
         keys.append([IKB(
             text=result['caption'],
             callback_data=f"video2@{result['id']}"
         )])
 
-    #add control buttons
+    # add control buttons
     keys.append([])
 
-    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1")) #back button
+    keys[-1].append(IKB(text=uic.BACK, callback_data=f"1"))  # back button
 
-    if page>1: #previos page button
-        keys[-1].append( IKB(text=uic.PREV, callback_data=f"videos2@{page-1}") )
+    if page > 1:  # previos page button
+        keys[-1].append(IKB(text=uic.PREV, callback_data=f"videos2@{page - 1}"))
 
-    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))  # info page button
 
-    if page <= (len(results)-1)//10: #next page button
-        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"videos2@{page+1}") )
+    if page <= (len(results) - 1) // 10:  # next page button
+        keys[-1].append(IKB(text=uic.NEXT, callback_data=f"videos2@{page + 1}"))
 
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def getBottomKeyboard(db, cur):
     return ReplyKeyboardMarkup(
@@ -472,15 +482,26 @@ def getBottomKeyboard(db, cur):
         selective=False
     )
 
+
+def getStreamParts(streamer, unix_data, db, cur):
+    cur.execute("""
+        SELECT part FROM streams WHERE author=%s AND udata=%s
+    """, [streamer, unix_data])
+    raw = cur.fetchall()
+    return [dct.get('part') or 'single' for dct in raw]
+
+
 def addStream(args, reply, db, cur):
     streamer = args[0]
     date = time.strptime(args[1], "%d.%m.%Y")
     unix_data = time.mktime(date)
-    part = args[2] if len(args)>=3 else None
+    part = args[2] if len(args) >= 3 else None
 
-    if not reply: return False
-    if not reply.caption: return False
-    if not reply.video: return False
+    if not reply: return None
+    if not reply.caption: return None
+    if not reply.video: return None
+
+    before = getStreamParts(streamer, unix_data, db, cur)
 
     if part:
         cur.execute("""
@@ -509,7 +530,10 @@ def addStream(args, reply, db, cur):
         ])
     db.commit()
 
-    return True
+    after = getStreamParts(streamer, unix_data, db, cur)
+
+    return before, after
+
 
 def delStream(caption, db, cur):
     cur.execute("""
@@ -520,6 +544,7 @@ def delStream(caption, db, cur):
     db.commit()
 
     return True
+
 
 def addVideo(args, reply, db, cur):
     vorder = args[0]
@@ -541,6 +566,7 @@ def addVideo(args, reply, db, cur):
 
     return True
 
+
 def addVideo2(args, reply, db, cur):
     vorder = args[0]
 
@@ -561,6 +587,7 @@ def addVideo2(args, reply, db, cur):
 
     return True
 
+
 def delVideo(caption, db, cur):
     cur.execute("""
         DELETE FROM videos
@@ -571,6 +598,7 @@ def delVideo(caption, db, cur):
 
     return True
 
+
 def delVideo2(caption, db, cur):
     cur.execute("""
         DELETE FROM videos2
@@ -580,6 +608,7 @@ def delVideo2(caption, db, cur):
     db.commit()
 
     return True
+
 
 def addChat(chat_id, platform, streamer_id, db, cur):
     cur.execute("""
@@ -598,7 +627,8 @@ def addChat(chat_id, platform, streamer_id, db, cur):
         return True
     return False
 
-def delChat(chat_id, platform, streamer_id, db, cur, limit = None):
+
+def delChat(chat_id, platform, streamer_id, db, cur, limit=None):
     if limit is None:
         cur.execute("""
             DELETE FROM chats
@@ -613,6 +643,7 @@ def delChat(chat_id, platform, streamer_id, db, cur, limit = None):
 
     return True
 
+
 async def correctChats(bot, db, cur):
     cur.execute("""
         SELECT id, platform, streamer_id FROM chats
@@ -626,13 +657,13 @@ async def correctChats(bot, db, cur):
 
     for chat in chats:
         if (chat['platform'], chat['streamer_id']) not in unique_streamers:
-            delChat(chat['id'], chat['platform'], chat['streamer_id'], db, cur, limit = 1)
+            delChat(chat['id'], chat['platform'], chat['streamer_id'], db, cur, limit=1)
             old_counter += 1
             continue
 
         tuple_key = (chat['id'], chat['platform'], chat['streamer_id'])
         if tuple_key in unique_chats:
-            delChat(chat['id'], chat['platform'], chat['streamer_id'], db, cur, limit = 1)
+            delChat(chat['id'], chat['platform'], chat['streamer_id'], db, cur, limit=1)
             twink_counter += 1
             continue
 
@@ -641,10 +672,11 @@ async def correctChats(bot, db, cur):
 
     return old_counter, twink_counter
 
+
 def addMark(user_id, reply, db, cur):
     if not reply.caption: return False
 
-    #get stream id
+    # get stream id
     cur.execute(f"""
         SELECT id FROM streams WHERE caption=%s
     """, [reply.caption])
@@ -667,10 +699,11 @@ def addMark(user_id, reply, db, cur):
 
     return True
 
+
 def delMark(user_id, reply, db, cur):
     if not reply.caption: return False
 
-    #get stream id
+    # get stream id
     cur.execute(f"""
         SELECT id FROM streams WHERE caption=%s
     """, [reply.caption])
@@ -692,23 +725,24 @@ def delMark(user_id, reply, db, cur):
 
     return True
 
+
 def getMarks(user_id, page, db, cur):
     page = int(page)
     keys = []
 
-    #select mysql request
+    # select mysql request
     cur.execute("""
         SELECT stream_id FROM marks WHERE user_id=%s
     """, [user_id])
     results = cur.fetchall()
 
-    for result in results[(page-1)*10:page*10]:
+    for result in results[(page - 1) * 10:page * 10]:
         cur.executemany("""
             SELECT caption, author, day, month, year, part FROM streams WHERE id=%s
         """, [result['stream_id']])
         result = cur.fetchone()
 
-        if(result['part']):
+        if (result['part']):
             keys.append([IKB(
                 text=f"{result['caption']}",
                 callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}@{result['part']}"
@@ -719,28 +753,31 @@ def getMarks(user_id, page, db, cur):
                 callback_data=f"1@{result['author']}@{result['year']}@{result['month']}@{result['day']}"
             )])
 
-    #add control buttons
+    # add control buttons
     keys.append([])
 
-    keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"marks@{user_id}@{page}")) #back button
+    keys[-1].append(IKB(text=uic.REFRESH, callback_data=f"marks@{user_id}@{page}"))  # back button
 
-    if page>1:#previos page button
-        keys[-1].append( IKB(text=uic.PREV, callback_data=f"marks@{user_id}@{page-1}") )
+    if page > 1:  # previos page button
+        keys[-1].append(IKB(text=uic.PREV, callback_data=f"marks@{user_id}@{page - 1}"))
 
-    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))# info page button
+    keys[-1].append(IKB(text=f"{page}", callback_data=f"pass"))  # info page button
 
-    if page <= (len(results)-1)//10: #next page button
-        keys[-1].append( IKB(text=uic.NEXT, callback_data=f"marks@{user_id}@{page+1}") )
+    if page <= (len(results) - 1) // 10:  # next page button
+        keys[-1].append(IKB(text=uic.NEXT, callback_data=f"marks@{user_id}@{page + 1}"))
 
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def get_streamers():
-    with open(CONFIGS['streamlink']['streamers'],"r",encoding='utf-8') as f:
+    with open(CONFIGS['streamlink']['streamers'], "r", encoding='utf-8') as f:
         return json.load(f)
 
+
 def set_streamers(streamers_update):
-    with open(CONFIGS['streamlink']['streamers'],"w",encoding='utf-8') as f:
-        json.dump(streamers_update, f, indent = 4)
+    with open(CONFIGS['streamlink']['streamers'], "w", encoding='utf-8') as f:
+        json.dump(streamers_update, f, indent=4)
+
 
 def getNotifKeyboard(chat_id, page, db, cur):
     page = int(page)
@@ -748,18 +785,19 @@ def getNotifKeyboard(chat_id, page, db, cur):
 
     def in_notif(streamer, notifs):
         for notif in notifs:
-            if(notif['platform'] == streamer['platform'] and notif['streamer_id'] == streamer['id']):
+            if (notif['platform'] == streamer['platform'] and notif['streamer_id'] == streamer['id']):
                 return True
         return False
-    #select notif from sql
+
+    # select notif from sql
     cur.execute("""
         SELECT platform, streamer_id FROM chats WHERE id=%s
     """, [chat_id])
     notifications = cur.fetchall()
 
-    #select streamers from json
+    # select streamers from json
     streamers = get_streamers()
-    for streamer in streamers:#[(page-1)*10:page*10]
+    for streamer in streamers:  # [(page-1)*10:page*10]
         notif_on = in_notif(streamer, notifications)
 
         keys.append([IKB(
@@ -782,17 +820,18 @@ def getNotifKeyboard(chat_id, page, db, cur):
             else IKB(text=uic.STOP, callback_data=f"pass")
         )
     """
-    return InlineKeyboardMarkup(inline_keyboard = keys)
+    return InlineKeyboardMarkup(inline_keyboard=keys)
+
 
 def getLastUp():
     info_table = ""
 
-    #select streamers from json
+    # select streamers from json
     streamers = get_streamers()
-    for streamer in streamers:#[(page-1)*10:page*10]
+    for streamer in streamers:  # [(page-1)*10:page*10]
         info_table += (
-            uic.build_last_stream(streamer)+
-            "\n"
+                uic.build_last_stream(streamer) +
+                "\n"
         )
 
     """
@@ -822,27 +861,28 @@ def getLastUp():
     """
     return info_table
 
+
 def getCooldowns():
     info_table = ""
 
-    #select streamers from json
+    # select streamers from json
     streamers = get_streamers()
-    for streamer in streamers:#[(page-1)*10:page*10]
+    for streamer in streamers:  # [(page-1)*10:page*10]
         info_table += (
-            uic.build_cooldown(
-                streamer,
-                time.gmtime(max(
-                    0.0,
-                    (streamer['lastdown'] + CONFIGS['streamlink'].getfloat('cooldown')) - time.time()
-                ))
-            )+
-            "\n"
+                uic.build_cooldown(
+                    streamer,
+                    time.gmtime(max(
+                        0.0,
+                        (streamer['lastdown'] + CONFIGS['streamlink'].getfloat('cooldown')) - time.time()
+                    ))
+                ) +
+                "\n"
         )
 
     return info_table
 
-async def broadcastText(bot, text, db):
 
+async def broadcastText(bot, text, db):
     async def stableSend(chat_id, platform, streamer_id, text):
         try:
             await bot.send_message(chat_id, text)
@@ -868,7 +908,6 @@ async def broadcastText(bot, text, db):
             return True
         return False
 
-
     LOGGER.info(f"Broadcast info{{ {text:32}{'...' if len(text) > 32 else ''} }}")
 
     with db, db.cursor() as cur:
@@ -877,7 +916,7 @@ async def broadcastText(bot, text, db):
         """)
         recipients = cur.fetchall()
 
-    #test on unicue broadcast
+    # test on unicue broadcast
     repeated = set()
 
     repeated_counter = 0
@@ -887,23 +926,22 @@ async def broadcastText(bot, text, db):
             repeated_counter += 1
             continue
 
-        if (await stableSend(recipient['id'], recipient['platform'],  recipient['streamer_id'], text)):
+        if (await stableSend(recipient['id'], recipient['platform'], recipient['streamer_id'], text)):
             successfull_counter += 1
             repeated.add(recipient['id'])
 
         await asyncio.sleep(0.04)
 
-
-
-    if(successfull_counter+repeated_counter == len(recipients)):
+    if (successfull_counter + repeated_counter == len(recipients)):
         LOGGER.info(f"Broadcast succesfull!\n\tAmount: {successfull_counter}\n\tRepeaded: {repeated_counter}.")
         return f"Broadcast succesfull!\n\tAmount: {successfull_counter}\n\tRepeaded: {repeated_counter}."
     else:
-        LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n\tRepeaded: {repeated_counter}.")
+        LOGGER.warning(
+            f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n\tRepeaded: {repeated_counter}.")
         return f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!\n\tRepeaded: {repeated_counter}."
 
-async def broadcastStream(bot, streamer, text, broadcast_id, db):
 
+async def broadcastStream(bot, streamer, text, broadcast_id, db):
     async def stableSend(chat_id, text):
         try:
             await bot.send_message(chat_id, text)
@@ -929,7 +967,6 @@ async def broadcastStream(bot, streamer, text, broadcast_id, db):
             return True
         return False
 
-
     LOGGER.info(f"Broadcast_[{broadcast_id}] for {streamer['name']}...")
 
     with db, db.cursor() as cur:
@@ -945,37 +982,38 @@ async def broadcastStream(bot, streamer, text, broadcast_id, db):
 
         await asyncio.sleep(0.04)
 
-    if(successfull_counter == len(recipients)):
+    if (successfull_counter == len(recipients)):
         LOGGER.info(f"Broadcast succesfull!")
     else:
         LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!")
 
-async def streams_demon(bot, db):
 
+async def streams_demon(bot, db):
     async def check_stream(streamer, trusted_deep=3):
         url = f"{streamer['platform']}/{streamer['id']}"
         LOGGER.debug(f"Checking stream for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
-        #рекурсивная проверка
-        #для удобства хвостовая рекурсия переделана в цикл
+
+        # рекурсивная проверка
+        # для удобства хвостовая рекурсия переделана в цикл
         async def cicle_check():
             loop = asyncio.get_event_loop()
             level = 1
-            while(level <= trusted_deep):
-                #если глубина проверки больше дозволеной то стрим оффлайн
+            while (level <= trusted_deep):
+                # если глубина проверки больше дозволеной то стрим оффлайн
                 try:
-                    #Воспользуемся API streamlink'а. Через сессию получаем инфу о стриме. Если инфы нет - то считаем за офлайн.
+                    # Воспользуемся API streamlink'а. Через сессию получаем инфу о стриме. Если инфы нет - то считаем за офлайн.
                     if await loop.run_in_executor(None, SLS.streams, url):
-                        return True #online
+                        return True  # online
                 except PluginError as err:
-                    #если проблемы с интернетом
+                    # если проблемы с интернетом
                     await asyncio.sleep(5)
                 level += 1
-                #если говорит что стрим оффлайн проверим еще раз
+                # если говорит что стрим оффлайн проверим еще раз
             return False
 
         return (await cicle_check()), streamer
 
-    #online profilactic
+    # online profilactic
     streamers = get_streamers()
     for streamer in streamers:
         streamer['online'] = True
@@ -987,19 +1025,100 @@ async def streams_demon(bot, db):
         UPDATE_FLAG = False
         streamers = get_streamers()
         chekers = {check_stream(streamer, 2) for streamer in streamers}
-        check_id = random.randint(1,999)
+        check_id = random.randint(1, 999)
 
-        #итератор в порядке завершения проверок
+        # итератор в порядке завершения проверок
         for cheker in asyncio.as_completed(chekers):
             online, streamer = await cheker
 
             LOGGER.debug(f"{streamer['name']} online - [{streamer['online']} -> {online}]")
             if online and not streamer["online"]:
-                if time.time() - streamer['lastdown'] > CONFIGS['streamlink'].getfloat('cooldown'): # one hour
+                if time.time() - streamer['lastdown'] > CONFIGS['streamlink'].getfloat('cooldown'):  # one hour
                     streamer['lastup'] = time.time()
-                    await broadcastStream(bot, streamer, uic.build_stream_text(streamer), check_id, db)
+
+                    ####################################################
+                    stream_name = ''
+                    # Выгрузка названия стрима
+                    if streamer['platform'] == 'wasd.tv':  # Для wasd.tv
+
+                        channel_id = -1
+                        if streamer['id'] == 'dawgos':
+                            channel_id = '78728'
+                        if streamer['id'] == 'alison':
+                            channel_id = '62480'
+                        if streamer['id'] == 'mightypoot':
+                            channel_id = '62463'
+
+                        try:
+                            # Подключаемся к wasd.tv api через anon-token, выгружаем имя текущего стрима
+                            await requests.post('https://wasd.tv/api/auth/anon-token')
+                            response = await requests.get(
+                                f'https://wasd.tv/api/v2/media-containers'
+                                f'?limit=1&offset=0'
+                                f'&media_container_status=RUNNING'
+                                f'&media_container_type=SINGLE'
+                                f'&channel_id={channel_id}'
+                            )
+                            response_json = await response.json()
+                            media_container_name = response_json["result"][0]["media_container_name"]
+                            stream_name = f'«{media_container_name}»'
+
+                        except Exception as err:
+                            # Если ошибки - то в качестве имени стрима пихаем пустую строку
+                            LOGGER.error(err)
+
+                    if streamer['platform'] == 'twitch.tv':  # Для twitch.tv
+
+                        try:
+                            # Подключаемся к twitch.tv api, используя client_id + secret_key.
+                            # Выгружаем access_token (он рефрешится, нужно запрашивать постоянно)
+                            url_for_req = (
+                                f'https://id.twitch.tv/oauth2/token'
+                                f'?client_id={cliend_id}'
+                                f'&client_secret={secret_key}'
+                                f'&grant_type=client_credentials'
+                            )
+                            response = await requests.post(url_for_req)
+                            response_json = await response.json()
+                            access_token = response_json['access_token']
+
+                            # Используя access_token еще раз подключаемся к твичу и выгружаем инфу о стриме)
+                            url_for_req = f'https://api.twitch.tv/helix/streams?user_login={streamer["id"]}'
+                            headers = {'Authorization': 'Bearer ' + access_token, 'Client-Id': cliend_id}
+                            response = await requests.get(url_for_req, headers=headers)
+                            response_json = await response.json()
+
+                            # В самом начале потока twitch.tv почему-то не
+                            # возвращает инфу о стриме (она становится доступна не сразу)
+                            if not response_json.get('data'):
+                                # Делаем цикл и ждём (делая запрос каждую секунду)
+                                # пока твич не вернёт json с инфой о стриме
+                                # На всякий случай - дабы цикл не завис навечно - делаем счётчик проходов цикла,
+                                # принудительно выходим из цикла после 90 секунд
+                                # Обычно на появление инфы о стриме требуется 20-25 секунд
+                                for _ in range(90):
+                                    await asyncio.sleep(1)
+                                    response = await requests.get(url_for_req, headers=headers)
+                                    response_json = await response.json()
+
+                                    # Если запрос успешно вернул данные - выйти из цикла
+                                    if response_json['data']:
+                                        break
+                                else:
+                                    raise Exception('90 секунд истекло! запрос не вернул данные о стриме')
+
+                            stream_name = f'«{response_json["data"][0]["title"]}»'
+
+                        except Exception as err:
+                            # Если ошибки - то в качестве имени стрима пихаем пустую строку
+                            LOGGER.error(err)
+
+                    ####################################################
+
+                    await broadcastStream(bot, streamer, uic.build_stream_text(streamer, stream_name), check_id, db)
                 else:
-                    LOGGER.warning(f"Stream broadcast[{check_id}] cooldown({time.time() - streamer['lastdown']}) for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
+                    LOGGER.warning(
+                        f"Stream broadcast[{check_id}] cooldown({time.time() - streamer['lastdown']}) for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
                     await bot.send_message(
                         CONFIGS['telegram']['dashboard'],
                         f"Stream broadcast[{check_id}] cooldown({int(time.time() - streamer['lastdown'])}) for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}"
@@ -1008,7 +1127,7 @@ async def streams_demon(bot, db):
             if streamer["online"] and not online:
                 streamer['lastdown'] = time.time()
 
-            if(streamer["online"] != online):
+            if (streamer["online"] != online):
                 UPDATE_FLAG = True
             streamer["online"] = online
 
@@ -1017,11 +1136,11 @@ async def streams_demon(bot, db):
         await asyncio.sleep(30)
 
 
-#main function
+# main function
 def start():
     LOGGER.info("Starting...")
 
-    #connection to database
+    # connection to database
     database = MyConnection(
         host=f"{CONFIGS['data-base']['host']}",
         user=CONFIGS['data-base']['login'],
@@ -1074,7 +1193,7 @@ def start():
         """)
         database.commit()
 
-    #create bot
+    # create bot
     bot = Bot(token=CONFIGS['telegram']['token'])
     storage = MemoryStorage()
     dispatcher = Dispatcher(bot, storage=storage)
@@ -1082,28 +1201,28 @@ def start():
     middleware = ThrottlingMiddleware(throttling_rate_limit=7)
     dispatcher.middleware.setup(middleware)
 
-    #bot handlers
+    # bot handlers
     @dispatcher.message_handler(commands=["start"])
     async def start_handler(message: types.Message):
-        #processing command /start
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /start
+        # get streamers from db
+        # and
+        # construct keyboard
         with database, database.cursor() as dbcursor:
             keyboard = getKeyboard([1], database, dbcursor)
         await message.reply(uic.START_CMD, reply_markup=keyboard)
 
     @dispatcher.message_handler(commands=["help"])
     async def help_handler(message: types.Message):
-        #processing command /help
+        # processing command /help
         await message.reply(uic.HELP_CMD)
 
     @dispatcher.message_handler(commands=["notifications"])
     async def notifications_handler(message: types.Message):
-        #processing command /notifications
-        #get streamers from json
-        #and
-        #construct keyboard
+        # processing command /notifications
+        # get streamers from json
+        # and
+        # construct keyboard
         with database, database.cursor() as dbcursor:
             keyboard = getNotifKeyboard(message.chat.id, 1, database, dbcursor)
         await message.reply(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
@@ -1111,16 +1230,16 @@ def start():
     @dispatcher.message_handler(commands=["lastup"])
     async def notifications_handler(message: types.Message):
         last_up_info = getLastUp()
-        await message.reply(uic.LASTUP+"\n"+md.hpre(last_up_info), parse_mode = "html")
+        await message.reply(uic.LASTUP + "\n" + md.hpre(last_up_info), parse_mode="html")
 
     @dispatcher.message_handler(commands=["find"])
     async def find_handler(message: types.Message):
-        #processing command /find
-        #get streams from db
-        #and
-        #construct keyboard
+        # processing command /find
+        # get streams from db
+        # and
+        # construct keyboard
         command, expresion = message.get_full_command()
-        if(len(expresion) < 3 or len(expresion) > 30):
+        if (len(expresion) < 3 or len(expresion) > 30):
             await message.reply(uic.FIND_NO_ARGS)
             return
         my_message = await message.reply(uic.WAIT)
@@ -1136,19 +1255,19 @@ def start():
             pass
         return
 
-    @dispatcher.message_handler(commands=["review","r"])
+    @dispatcher.message_handler(commands=["review", "r"])
     async def review_handler(message: types.Message):
-        #processing command /find
-        #get streams from db
-        #and
-        #construct keyboard
+        # processing command /find
+        # get streams from db
+        # and
+        # construct keyboard
         command, msg_for_dev = message.get_full_command()
-        if(len(msg_for_dev) < 3):
+        if (len(msg_for_dev) < 3):
             await message.reply(uic.TO_SMALL)
             return
 
         try:
-            if(message.reply_to_message is not None):
+            if (message.reply_to_message is not None):
                 await message.reply_to_message.forward(CONFIGS['telegram']['dashboard'])
             await message.forward(CONFIGS['telegram']['dashboard'])
             await bot.send_message(CONFIGS['telegram']['dashboard'], uic.build_review_info(message), parse_mode="html")
@@ -1163,7 +1282,7 @@ def start():
 
     @dispatcher.message_handler(commands=["info"])
     async def send_info(message: types.Message):
-        await message.answer("```\n"+pformat(message.to_python())+"```", parse_mode="markdown")
+        await message.answer("```\n" + pformat(message.to_python()) + "```", parse_mode="markdown")
 
     @dispatcher.message_handler(commands=["mark"])
     async def addMark_handler(message: types.Message):
@@ -1203,11 +1322,11 @@ def start():
 
     @dispatcher.message_handler(commands=["get"])
     async def del_handler(message: types.Message):
-        #processing command /del caption
+        # processing command /del caption
         command, args = message.get_full_command()
-        args = re.sub(r"\\\s","@@",args)
+        args = re.sub(r"\\\s", "@@", args)
         args = args.split()
-        args = [re.sub(r"@@"," ",arg) for arg in args]
+        args = [re.sub(r"@@", " ", arg) for arg in args]
 
         succsces = None
         with database, database.cursor() as dbcursor:
@@ -1219,48 +1338,49 @@ def start():
         else:
             await message.reply(uic.NOT_FOUND)
 
-
-    #DASHBOARD COMMANDS
+    # DASHBOARD COMMANDS
     dashboard_filter = IDFilter(chat_id=CONFIGS['telegram']['dashboard'])
+
     @dispatcher.message_handler(dashboard_filter, commands=["vipinfo"])
     async def send_info(message: types.Message):
-        await message.answer("```\n"+pformat(message.to_python())+"```", parse_mode="markdown")
+        await message.answer("```\n" + pformat(message.to_python()) + "```", parse_mode="markdown")
 
     @dispatcher.message_handler(dashboard_filter, commands=["viphelp"])
     async def help_handler(message: types.Message):
-        #processing command /help
+        # processing command /help
         await message.reply(uic.VIPHELP_CMD)
 
     @dispatcher.message_handler(dashboard_filter, commands=["add"])
     async def add_handler(message: types.Message):
-        #processing command /add streamer data [, part]
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /add streamer data [, part]
+        # get streamers from db
+        # and
+        # construct keyboard
         command, args = message.get_full_command()
-        args = re.sub(r"\\\s","@@",args)
+        args = re.sub(r"\\\s", "@@", args)
         args = args.split()
-        args = [re.sub(r"@@"," ",arg) for arg in args]
+        args = [re.sub(r"@@", " ", arg) for arg in args]
 
         succsces = None
         with database, database.cursor() as dbcursor:
             succsces = addStream(args, message.reply_to_message, database, dbcursor)
 
         if succsces:
-            await message.reply(uic.ADDED)
+            partsBefore, partsAfter = succsces
+            await message.reply(uic.added_with_parts(partsBefore, partsAfter), parse_mode="html")
         else:
             await message.reply(uic.WRONG)
 
     @dispatcher.message_handler(dashboard_filter, commands=["addv"])
     async def addv_handler(message: types.Message):
-        #processing command /add streamer data [, part]
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /add streamer data [, part]
+        # get streamers from db
+        # and
+        # construct keyboard
         command, args = message.get_full_command()
-        args = re.sub(r"\\\s","@@",args)
+        args = re.sub(r"\\\s", "@@", args)
         args = args.split()
-        args = [re.sub(r"@@"," ",arg) for arg in args]
+        args = [re.sub(r"@@", " ", arg) for arg in args]
 
         succsces = None
         with database, database.cursor() as dbcursor:
@@ -1273,14 +1393,14 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["addv2"])
     async def addv2_handler(message: types.Message):
-        #processing command /add streamer data [, part]
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /add streamer data [, part]
+        # get streamers from db
+        # and
+        # construct keyboard
         command, args = message.get_full_command()
-        args = re.sub(r"\\\s","@@",args)
+        args = re.sub(r"\\\s", "@@", args)
         args = args.split()
-        args = [re.sub(r"@@"," ",arg) for arg in args]
+        args = [re.sub(r"@@", " ", arg) for arg in args]
 
         succsces = None
         with database, database.cursor() as dbcursor:
@@ -1293,7 +1413,7 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["del"])
     async def del_handler(message: types.Message):
-        #processing command /del caption
+        # processing command /del caption
         command, caption = message.get_full_command()
 
         succsces = None
@@ -1307,10 +1427,10 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["delv"])
     async def delv_handler(message: types.Message):
-        #processing command /del caption
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /del caption
+        # get streamers from db
+        # and
+        # construct keyboard
         command, caption = message.get_full_command()
         succsces = None
         with database, database.cursor() as dbcursor:
@@ -1323,10 +1443,10 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["delv2"])
     async def delv2_handler(message: types.Message):
-        #processing command /del caption
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /del caption
+        # get streamers from db
+        # and
+        # construct keyboard
         command, caption = message.get_full_command()
         succsces = None
         with database, database.cursor() as dbcursor:
@@ -1339,10 +1459,10 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["rep"])
     async def rep_handler(message: types.Message):
-        #processing command /del caption
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /del caption
+        # get streamers from db
+        # and
+        # construct keyboard
         command, args = message.get_full_command()
         args = args.split()
         chat_id = args[0]
@@ -1364,10 +1484,10 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["broadcast"])
     async def broadcast_handler(message: types.Message):
-        #processing command /del caption
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /del caption
+        # get streamers from db
+        # and
+        # construct keyboard
         command, text = message.get_full_command()
         result = uic.WRONG
 
@@ -1377,23 +1497,23 @@ def start():
 
     @dispatcher.message_handler(dashboard_filter, commands=["cooldowns"])
     async def cooldowns_handler(message: types.Message):
-        #processing command /del caption
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /del caption
+        # get streamers from db
+        # and
+        # construct keyboard
         command, text = message.get_full_command()
         result = uic.WRONG
         try:
-            result = uic.COOLDOWN+"\n"+md.hpre(getCooldowns())
+            result = uic.COOLDOWN + "\n" + md.hpre(getCooldowns())
         finally:
-            await message.reply(result, parse_mode = "html")
+            await message.reply(result, parse_mode="html")
 
     @dispatcher.message_handler(dashboard_filter, commands=["fixnotifs"])
     async def fixnotifs_handler(message: types.Message):
-        #processing command /del caption
-        #get streamers from db
-        #and
-        #construct keyboard
+        # processing command /del caption
+        # get streamers from db
+        # and
+        # construct keyboard
         result = uic.ERROR
 
         await message.reply(f"Start fixing...")
@@ -1402,23 +1522,22 @@ def start():
             result = f"Chat fixed succesfull! Deleted:\nOld notifs - {olds}\nTwinks - {twinks}"
         await message.reply(result)
 
-
     @dispatcher.message_handler()
     async def unknow_cmd(message: types.Message):
         await message.answer(uic.UNKNOW_CMD)
 
-    #CALLBACK
+    # CALLBACK
     @dispatcher.callback_query_handler()
     async def button_handler(callback_query: types.CallbackQuery):
         args = callback_query.data.split("@")
-        if(args[0] == 'pass'): return
+        if (args[0] == 'pass'): return
 
-        if(args[0] == 'notification'):
-            #args[1] - is on notif
-            #args[2] - platform
-            #args[3] - streamer
+        if (args[0] == 'notification'):
+            # args[1] - is on notif
+            # args[2] - platform
+            # args[3] - streamer
             with database, database.cursor() as dbcursor:
-                if(not bool(int(args[1]))):
+                if (not bool(int(args[1]))):
                     addChat(callback_query.message.chat.id, args[2], args[3], database, dbcursor)
                 else:
                     delChat(callback_query.message.chat.id, args[2], args[3], database, dbcursor)
@@ -1430,13 +1549,13 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
-        if(args[0] == 'notifset'):#args[1] = page
+        if (args[0] == 'notifset'):  # args[1] = page
             with database, database.cursor() as dbcursor:
                 keyboard = getNotifKeyboard(callback_query.message.chat.id, args[1], database, dbcursor)
             await callback_query.message.edit_text(uic.NOTIFICATIONS_CMD, reply_markup=keyboard)
             return
 
-        if(args[0] == 'videos'): #args[1] = page
+        if (args[0] == 'videos'):  # args[1] = page
             with database, database.cursor() as dbcursor:
                 keyboard = getVideosKeyboard(args[1], database, dbcursor)
 
@@ -1446,7 +1565,7 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
-        if(args[0] == 'video'): #args[1] = id
+        if (args[0] == 'video'):  # args[1] = id
             await callback_query.message.chat.do('upload_video')
 
             with database, database.cursor() as dbcursor:
@@ -1457,7 +1576,7 @@ def start():
                 await callback_query.message.answer(uic.NOT_FOUND)
             return
 
-        if(args[0] == 'videos2'): #args[1] = page
+        if (args[0] == 'videos2'):  # args[1] = page
             with database, database.cursor() as dbcursor:
                 keyboard = getVideos2Keyboard(args[1], database, dbcursor)
 
@@ -1467,7 +1586,7 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
-        if(args[0] == 'video2'): #args[1] = id
+        if (args[0] == 'video2'):  # args[1] = id
             await callback_query.message.chat.do('upload_video')
 
             with database, database.cursor() as dbcursor:
@@ -1478,7 +1597,7 @@ def start():
                 await callback_query.message.answer(uic.NOT_FOUND)
             return
 
-        if(args[0] == 'find'): # args[1] = expr; args[2] = page
+        if (args[0] == 'find'):  # args[1] = expr; args[2] = page
             await callback_query.answer(uic.WAIT, show_alert=False)
 
             with database, database.cursor() as dbcursor:
@@ -1494,7 +1613,7 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
-        if(args[0] == 'last'):
+        if (args[0] == 'last'):
             with database, database.cursor() as dbcursor:
                 keyboard = getLastStream(args, database, dbcursor)
             try:
@@ -1503,11 +1622,11 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
-        if(args[0] == 'marks'):
+        if (args[0] == 'marks'):
             await callback_query.answer(uic.WAIT, show_alert=False)
 
             with database, database.cursor() as dbcursor:
-                keyboard = getMarks(args[1], args[2], database, dbcursor)#args 1: user_id, args 2: page
+                keyboard = getMarks(args[1], args[2], database, dbcursor)  # args 1: user_id, args 2: page
 
             try:
                 await callback_query.message.edit_text(uic.MARKS_CMD, reply_markup=keyboard)
@@ -1515,11 +1634,11 @@ def start():
                 await callback_query.answer(uic.WRONG, show_alert=False)
             return
 
-        if(len(args) < 5):
+        if (len(args) < 5):
             with database, database.cursor() as dbcursor:
                 keyboard = getKeyboard(args, database, dbcursor)
             try:
-                await callback_query.message.edit_text(uic.PICK_MSG[len(args)-1], reply_markup=keyboard)
+                await callback_query.message.edit_text(uic.PICK_MSG[len(args) - 1], reply_markup=keyboard)
             except MessageNotModified:
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
 
@@ -1534,6 +1653,7 @@ def start():
                 await callback_query.message.answer(uic.NOT_FOUND)
 
     demons = []
+
     async def on_startup(dispatcher):
         global ALIVE
         ALIVE = True
@@ -1551,8 +1671,6 @@ def start():
         for demon in demons:
             demon.cancel()
 
-
-
     start_polling(
         dispatcher,
         skip_updates=True,
@@ -1560,6 +1678,7 @@ def start():
         on_shutdown=on_shutdown
     )
 
-#start
+
+# start
 if __name__ == "__main__":
     start()
