@@ -7,6 +7,7 @@ import logging
 import json
 import re
 import random
+# import aiohttp # zya
 
 from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
@@ -53,7 +54,8 @@ logging.basicConfig(
     handlers=(file_log, console_out),
     format='[%(asctime)s | %(levelname)s] %(name)s: %(message)s',
     datefmt='%b %d %H:%M:%S %Y',
-    level=int(CONFIGS['logging']['level']))
+    level=int(CONFIGS['logging']['level'])
+)
 LOGGER = logging.getLogger("bot")
 
 # StreamLink Session
@@ -62,9 +64,6 @@ SLS = Streamlink()
 SLS.set_plugin_option("twitch", "disable_hosting", True)
 SLS.set_plugin_option("twitch", "disable_reruns", True)
 SLS.set_plugin_option("twitch", "disable-ads", True)
-
-cliend_id = '0cd7lo7d8v4prh3hhf4b044fphouyt'  # ID приложения (для twitch API - для выгрузки имени стрима)
-secret_key = 'bec7ijgtpgctc1p5lb6nc8b6vozajt'  # Ключ подключения (для twitch API - для выгрузки имени стрима)
 
 
 # classes
@@ -1041,15 +1040,23 @@ async def streams_demon(bot, db):
                     # Выгрузка названия стрима
                     if streamer['platform'] == 'wasd.tv':  # Для wasd.tv
 
-                        channel_id = -1
-                        if streamer['id'] == 'dawgos':
-                            channel_id = '78728'
-                        if streamer['id'] == 'alison':
-                            channel_id = '62480'
-                        if streamer['id'] == 'mightypoot':
-                            channel_id = '62463'
-
                         try:
+                            # ## ВАриант зуи
+                            # # Подключаемся к WASD.TV API, выгружаем имя стрима
+                            # async with aiohttp.ClientSession() as session:
+                            #     url_for_req = 'https://wasd.tv/api/auth/anon-token'
+                            #     async with session.post(url_for_req) as anon_token_resp:
+                            #         url_for_req = 'https://wasd.tv/api/v2/media-containers?
+                            #         limit=1&offset=0
+                            #         &media_container_status=RUNNING
+                            #         &media_container_type=SINGLE
+                            #         &channel_id=' + \
+                            #                       streamer['channel_id']
+                            #         async with session.get(url_for_req) as response:
+                            #             response_json = await response.json()
+                            #             stream_name = '«' + str(
+                            #                 response_json['result'][0]['media_container_name']) + '»'
+
                             # Подключаемся к wasd.tv api через anon-token, выгружаем имя текущего стрима
                             await requests.post('https://wasd.tv/api/auth/anon-token')
                             response = await requests.get(
@@ -1057,7 +1064,7 @@ async def streams_demon(bot, db):
                                 f'?limit=1&offset=0'
                                 f'&media_container_status=RUNNING'
                                 f'&media_container_type=SINGLE'
-                                f'&channel_id={channel_id}'
+                                f'&channel_id={streamer["channel_id"]}'
                             )
                             response_json = await response.json()
                             media_container_name = response_json["result"][0]["media_container_name"]
@@ -1074,8 +1081,8 @@ async def streams_demon(bot, db):
                             # Выгружаем access_token (он рефрешится, нужно запрашивать постоянно)
                             url_for_req = (
                                 f'https://id.twitch.tv/oauth2/token'
-                                f'?client_id={cliend_id}'
-                                f'&client_secret={secret_key}'
+                                f'?client_id={CONFIGS["twitch-keys"]["cliend_id"]}'
+                                f'&client_secret={CONFIGS["twitch-keys"]["secret_key"]}'
                                 f'&grant_type=client_credentials'
                             )
                             response = await requests.post(url_for_req)
@@ -1084,7 +1091,10 @@ async def streams_demon(bot, db):
 
                             # Используя access_token еще раз подключаемся к твичу и выгружаем инфу о стриме)
                             url_for_req = f'https://api.twitch.tv/helix/streams?user_login={streamer["id"]}'
-                            headers = {'Authorization': 'Bearer ' + access_token, 'Client-Id': cliend_id}
+                            headers = {
+                                'Authorization': f'Bearer {access_token}',
+                                'Client-Id': CONFIGS["twitch-keys"]["cliend_id"]
+                            }
                             response = await requests.get(url_for_req, headers=headers)
                             response_json = await response.json()
 
@@ -1127,11 +1137,13 @@ async def streams_demon(bot, db):
             if streamer["online"] and not online:
                 streamer['lastdown'] = time.time()
 
-            if (streamer["online"] != online):
+            if streamer["online"] != online:
                 UPDATE_FLAG = True
+
             streamer["online"] = online
 
-        if UPDATE_FLAG: set_streamers(streamers)
+        if UPDATE_FLAG:
+            set_streamers(streamers)
 
         await asyncio.sleep(30)
 
