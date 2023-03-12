@@ -120,9 +120,9 @@ LATESTS = "Latests..."
 #LASTUP = f"Dates of the last streams (UTC{-1*time.timezone//3600:+}):"
 LASTUP = f"Dates of the last streams (UTC+3):"
 COOLDOWN = f"Cooldowns of the streams:"
-VIDEOS = "Видео с ютуба - Dawg"
-VIDEOS2 = "Видео с ютуба - Alison"
-VIDEOS3 = "Видео с ютуба - Poot"
+VIDEOS = "Видео Dawg"
+VIDEOS2 = "Видео Alison"
+VIDEOS3 = "Видео Poot"
 
 BOTTOM_KEYBOARD = "/start"
 

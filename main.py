@@ -638,6 +638,8 @@ def add_video_3(args, reply, db, cur):
     if not reply.video:
         return False
 
+    LOGGER.info(f'Add video3 {vorder} {reply.video.file_id} {reply.caption}')
+
     cur.execute("""
         INSERT INTO videos3(
             vorder,
@@ -645,7 +647,8 @@ def add_video_3(args, reply, db, cur):
         ) VALUES(%s,%s,%s)
     """, [
         vorder,
-        reply.video.file_id, reply.caption
+        reply.video.file_id,
+        reply.caption
     ])
     db.commit()
 
