@@ -91,10 +91,12 @@ VIPHELP_CMD = """
 /add streamer date [, part] - add stream in reply to `streamer`, with `date` in dd.mm.yyyy, `part` of stream optional
 /addv priority - add Dwag's video, with integer `priority` order
 /addv2 priority - add Alison's video, with integer `priority` order
+/addv3 priority - add Poot's video, with integer `priority` order
 
 /del caption - delete one stream by `caption`
 /delv caption - delete one Dwag's video by `caption`
 /delv2 caption - delete one Alison's video by `caption`
+/delv3 caption - delete one Poot's video by `caption`
 
 /rep chat_id text - send `text` to the chat with `chat_id`, from bot face
 /broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
@@ -120,6 +122,7 @@ LASTUP = f"Dates of the last streams (UTC+3):"
 COOLDOWN = f"Cooldowns of the streams:"
 VIDEOS = "Видео с ютуба - Dawg"
 VIDEOS2 = "Видео с ютуба - Alison"
+VIDEOS3 = "Видео с ютуба - Poot"
 
 BOTTOM_KEYBOARD = "/start"
 
