@@ -1282,7 +1282,7 @@ def start():
             CREATE TABLE IF NOT EXISTS videos3 (
                 id      Int             NOT NULL PRIMARY KEY AUTO_INCREMENT,
                 file_id Varchar(255)    NOT NULL,
-                caption Varchar(1024)   NOT NULL,
+                caption Varchar(1024) CHARACTER SET utf8 COLLATE utf8_general_ci NOT NULL,
                 vorder  Int             NULL
             )
         """)
