@@ -6,6 +6,8 @@ import logging
 import json
 import re
 import random
+import traceback
+from enum import Enum
 # import aiohttp # zya
 
 from logging.handlers import RotatingFileHandler
@@ -13,6 +15,7 @@ from configparser import ConfigParser
 from pprint import pformat
 from typing import Any
 
+import aiofiles as aiofiles
 # external libs
 from aiohttp_requests import requests
 
@@ -64,6 +67,12 @@ SLS = Streamlink()
 SLS.set_plugin_option("twitch", "disable_hosting", True)
 SLS.set_plugin_option("twitch", "disable_reruns", True)
 SLS.set_plugin_option("twitch", "disable-ads", True)
+
+
+class StreamingPlatform(Enum):
+    Wasd = 'wasd.tv'
+    Twitch = 'twitch.tv'
+    Trovo = 'trovo.live'
 
 
 # classes
@@ -1073,30 +1082,37 @@ async def broadcast_stream(bot, streamer, text, broadcast_id, db):
 
 
 async def streams_demon(bot, db):
-    async def check_stream(streamer_, trusted_deep=3):
-        url = f"{streamer_['platform']}/{streamer_['id']}"
+    async def check_stream(streamer_):
         LOGGER.debug(f"Checking stream for {streamer_['name']} platform:{streamer_['platform']} id:{streamer_['id']}")
 
-        # рекурсивная проверка
-        # для удобства хвостовая рекурсия переделана в цикл
-        async def cicle_check():
-            loop = asyncio.get_event_loop()
-            level = 1
-            while level <= trusted_deep:
-                # если глубина проверки больше дозволеной то стрим оффлайн
-                try:
-                    # Воспользуемся API streamlink'а. Через сессию получаем инфу о стриме.
-                    # Если инфы нет - то считаем за офлайн.
-                    if await loop.run_in_executor(None, SLS.streams, url):
-                        return True  # online
-                except PluginError:
-                    # если проблемы с интернетом
-                    await asyncio.sleep(5)
-                level += 1
-                # если говорит что стрим оффлайн проверим еще раз
-            return False
+        if streamer['platform'] == StreamingPlatform.Wasd:
+            stream_out_json_file = '/home/ubuntu/cifra/check_streams_main/check_wasd.json'
+        elif streamer['platform'] == StreamingPlatform.Twitch:
+            stream_out_json_file = '/home/ubuntu/cifra/check_streams_main/check_twitch.json'
+        else:
+            return False, streamer_
+        # Проверка статуса стрима во внешнем json-файле
+        try:
+            async with aiofiles.open(
+                    stream_out_json_file,
+                    mode='r',
+                    encoding='utf-8'
+            ) as f:  # Выгружаем содержимое json-файла по wasd
+                contents = await f.read()
+        except Exception:
+            return False, streamer_
+        stream_out_json_data = json.loads(contents)
 
-        return (await cicle_check()), streamer_
+        for streamer_out in stream_out_json_data:
+            # Проверяем статус стрима во внешнем json-файле
+            if str(streamer_out['channel_id']) == str(streamer['channel_id']):
+                # Проверяем только по текущему каналу и текущей платформе
+                if streamer_out['stream_status']:
+                    # Имя текущего стрима
+                    streamer['last_stream_name'] = streamer_out['last_stream_name']
+                    return True, streamer_  # online
+                else:
+                    return False, streamer_  # offline
 
     # online profilactic
     streamers = get_streamers()
@@ -1120,96 +1136,15 @@ async def streams_demon(bot, db):
             if online and not streamer["online"]:
                 if time.time() - streamer['lastdown'] > CONFIGS['streamlink'].getfloat('cooldown'):  # one hour
                     streamer['lastup'] = time.time()
-
-                    ####################################################
                     stream_name = ''
-                    # Выгрузка названия стрима
-                    if streamer['platform'] == 'wasd.tv':  # Для wasd.tv
 
-                        try:
-                            # ## ВАриант зуи
-                            # # Подключаемся к WASD.TV API, выгружаем имя стрима
-                            # async with aiohttp.ClientSession() as session:
-                            #     url_for_req = 'https://wasd.tv/api/auth/anon-token'
-                            #     async with session.post(url_for_req) as anon_token_resp:
-                            #         url_for_req = 'https://wasd.tv/api/v2/media-containers?
-                            #         limit=1&offset=0
-                            #         &media_container_status=RUNNING
-                            #         &media_container_type=SINGLE
-                            #         &channel_id=' + \
-                            #                       streamer['channel_id']
-                            #         async with session.get(url_for_req) as response:
-                            #             response_json = await response.json()
-                            #             stream_name = '«' + str(
-                            #                 response_json['result'][0]['media_container_name']) + '»'
-
-                            # Подключаемся к wasd.tv api через anon-token, выгружаем имя текущего стрима
-                            await requests.post('https://wasd.tv/api/auth/anon-token')
-                            response = await requests.get(
-                                f'https://wasd.tv/api/v2/media-containers'
-                                f'?limit=1&offset=0'
-                                f'&media_container_status=RUNNING'
-                                f'&media_container_type=SINGLE'
-                                f'&channel_id={streamer["channel_id"]}'
-                            )
-                            response_json = await response.json()
-                            media_container_name = response_json["result"][0]["media_container_name"]
-                            stream_name = f'«{media_container_name}»'
-
-                        except Exception as err:
-                            # Если ошибки - то в качестве имени стрима пихаем пустую строку
-                            LOGGER.error(err)
-
-                    if streamer['platform'] == 'twitch.tv':  # Для twitch.tv
-
-                        try:
-                            # Подключаемся к twitch.tv api, используя client_id + secret_key.
-                            # Выгружаем access_token (он рефрешится, нужно запрашивать постоянно)
-                            url_for_req = (
-                                f'https://id.twitch.tv/oauth2/token'
-                                f'?client_id={CONFIGS["twitch-keys"]["cliend_id"]}'
-                                f'&client_secret={CONFIGS["twitch-keys"]["secret_key"]}'
-                                f'&grant_type=client_credentials'
-                            )
-                            response = await requests.post(url_for_req)
-                            response_json = await response.json()
-                            access_token = response_json['access_token']
-
-                            # Используя access_token еще раз подключаемся к твичу и выгружаем инфу о стриме)
-                            url_for_req = f'https://api.twitch.tv/helix/streams?user_login={streamer["id"]}'
-                            headers = {
-                                'Authorization': f'Bearer {access_token}',
-                                'Client-Id': CONFIGS["twitch-keys"]["cliend_id"]
-                            }
-                            response = await requests.get(url_for_req, headers=headers)
-                            response_json = await response.json()
-
-                            # В самом начале потока twitch.tv почему-то не
-                            # возвращает инфу о стриме (она становится доступна не сразу)
-                            if not response_json.get('data'):
-                                # Делаем цикл и ждём (делая запрос каждую секунду)
-                                # пока твич не вернёт json с инфой о стриме
-                                # На всякий случай - дабы цикл не завис навечно - делаем счётчик проходов цикла,
-                                # принудительно выходим из цикла после 90 секунд
-                                # Обычно на появление инфы о стриме требуется 20-25 секунд
-                                for _ in range(90):
-                                    await asyncio.sleep(1)
-                                    response = await requests.get(url_for_req, headers=headers)
-                                    response_json = await response.json()
-
-                                    # Если запрос успешно вернул данные - выйти из цикла
-                                    if response_json['data']:
-                                        break
-                                else:
-                                    raise Exception('90 секунд истекло! запрос не вернул данные о стриме')
-
-                            stream_name = f'«{response_json["data"][0]["title"]}»'
-
-                        except Exception as err:
-                            # Если ошибки - то в качестве имени стрима пихаем пустую строку
-                            LOGGER.error(err)
-
-                    ####################################################
+                    try:
+                        # Выгрузка названия стрима
+                        stream_name = streamer['last_stream_name']
+                        stream_name = f'«{stream_name}»'
+                    except Exception:
+                        # Если ошибки - то в качестве имени стрима пихаем пустую строку
+                        LOGGER.error(traceback.format_exc())
 
                     await broadcast_stream(bot, streamer, uic.build_stream_text(streamer, stream_name), check_id, db)
                 else:
