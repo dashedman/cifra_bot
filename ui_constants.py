@@ -58,7 +58,7 @@ FINDED = "Found!"
 FIND_NO_ARGS = "Please write '/find some text' to seek streams.\nMinimal length of text 3!\nMaximal length of text 30!"
 TO_SMALL = "Message is to small"
 
-START_CMD = "Pick the streamer!"
+START_CMD = "Pick the streams type!"
 HELP_CMD = """
 /start - to get keyboard with streams
 /help - to get list of commands
@@ -66,14 +66,6 @@ HELP_CMD = """
 /lastup - shows date of the last stream of all streamers
 /find some text - to find streams by name
 Example: "/find беременна"
-
-/mark - add stream in marked (liked) list (by replied video)
-Example:
-1. get stream use the comand /start or /find
-2. reply video
-3. write in answer "/mark"
-/unmark -delete video out of marked list(by replied video)
-/marks - get list with marked (liked) video
 
 /review some text -  to send message an admin. You NOT must write on English :)
 Shortcut: /r
@@ -88,15 +80,10 @@ VIPHELP_CMD = """
 /log - get last log
 /logs - get all logs
 
-/add streamer date [, part] - add stream in reply to `streamer`, with `date` in dd.mm.yyyy, `part` of stream optional
-/addv priority - add Dwag's video, with integer `priority` order
-/addv2 priority - add Alison's video, with integer `priority` order
-/addv3 priority - add Poot's video, with integer `priority` order
+/add1 folder_name [, part] - (Original) add stream in reply to `folder_name`, `part` of stream optional
+/add2 folder_name [, part] - (With chat) add stream in reply to `folder_name`, `part` of stream optional
 
 /del caption - delete one stream by `caption`
-/delv caption - delete one Dwag's video by `caption`
-/delv2 caption - delete one Alison's video by `caption`
-/delv3 caption - delete one Poot's video by `caption`
 
 /rep chat_id text - send `text` to the chat with `chat_id`, from bot face
 /broadcast text - send `text` to the all chat that have one or more streamer notifications, from bot face
@@ -111,13 +98,12 @@ UNKNOW_CMD = "Unknow command =/\nEnter /help to get list of commands"
 
 PICK_MSG = [
     START_CMD,
-    "Pick the year!",
-    "Pick the month!",
+    "Pick the Folder!",
     "Pick the stream!"
 ]
 
 LATESTS = "Latests..."
-#LASTUP = f"Dates of the last streams (UTC{-1*time.timezone//3600:+}):"
+# LASTUP = f"Dates of the last streams (UTC{-1*time.timezone//3600:+}):"
 LASTUP = f"Dates of the last streams (UTC+3):"
 COOLDOWN = f"Cooldowns of the streams:"
 VIDEOS = "Видео Dawg"
@@ -138,7 +124,7 @@ def build_review_info(message):
 
 
 TIME_FORMAT = "%d/%m/%y %H:%M"
-TIMEZONE = 3*60*60
+TIMEZONE = 3 * 60 * 60
 
 
 def build_last_stream(streamer):
@@ -151,3 +137,9 @@ def build_cooldown(streamer, cooldown: time.struct_time):
 
 def added_with_parts(partsBefore, partsAfter):
     return f'{ADDED}\n {md.hcode(partsBefore)} -> {md.hcode(partsAfter)}'
+
+
+ZE6UPO_FOLDERS = [
+    'Оригинал',
+    'С чатом'
+]
