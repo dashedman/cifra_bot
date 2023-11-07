@@ -8,7 +8,6 @@ import re
 import random
 import traceback
 from enum import Enum
-# import aiohttp # zya
 
 from logging.handlers import RotatingFileHandler
 from configparser import ConfigParser
@@ -119,9 +118,6 @@ class ThrottlingMiddleware(BaseMiddleware):
 
         if message.chat.id == CONFIGS['telegram'].getint('dashboard'):
             return
-            
-        if message.chat.id == 3251695:
-            return  # Разрешить "флуд" некоторым юзерам. ID можно найти: /info
         # Use Dispatcher.throttle method.
         try:
             await dispatcher.throttle(key, rate=limit)
@@ -978,7 +974,7 @@ def get_cooldowns():
 async def broadcast_text(bot, text, db):
     async def stable_send(chat_id, platform, streamer_id, msg_text):
         try:
-            await bot.send_message(chat_id, msg_text, disable_web_page_preview = True)
+            await bot.send_message(chat_id, msg_text)
         except BotBlocked:
             LOGGER.error(f"Target [ID:{chat_id}]: blocked by user")
             with db, db.cursor() as cur:
@@ -1039,7 +1035,7 @@ async def broadcast_text(bot, text, db):
 async def broadcast_stream(bot, streamer, text, broadcast_id, db):
     async def stable_send(chat_id, msg_text):
         try:
-            await bot.send_message(chat_id, msg_text, disable_web_page_preview=True)
+            await bot.send_message(chat_id, msg_text)
         except BotBlocked:
             LOGGER.error(f"Target [ID:{chat_id}]: blocked by user")
             with db, db.cursor() as cur:
@@ -1083,40 +1079,38 @@ async def broadcast_stream(bot, streamer, text, broadcast_id, db):
         LOGGER.warning(f"Broadcast losses: {len(recipients) - successfull_counter} to {len(recipients)}!")
 
 
-######################################
 async def streams_demon(bot, db):
-    async def check_stream(streamer, trusted_deep=3):
+    async def check_stream(streamer_):
+        LOGGER.debug(f"Checking stream for {streamer_['name']} platform:{streamer_['platform']} id:{streamer_['id']}")
 
-        # url = f"{streamer['platform']}/{streamer['id']}"
-        LOGGER.debug(f"Checking stream for {streamer['name']} platform:{streamer['platform']} id:{streamer['id']}")
-        stream_all_platforms = ['wasd.tv', 'twitch.tv', 'trovo.live', 'vkplay.live']
-        if streamer['platform'] == stream_all_platforms[0]:
+        if streamer['platform'] == StreamingPlatform.Wasd:
             stream_out_json_file = '/home/ubuntu/cifra/check_streams_main/check_wasd.json'
-        if streamer['platform'] == stream_all_platforms[1]:
+        elif streamer['platform'] == StreamingPlatform.Twitch:
             stream_out_json_file = '/home/ubuntu/cifra/check_streams_main/check_twitch.json'
-        if streamer['platform'] == stream_all_platforms[3]:
-            stream_out_json_file = '/home/ubuntu/cifra/check_streams_main/check_vk.json'
+        else:
+            return False, streamer_
+        # Проверка статуса стрима во внешнем json-файле
+        try:
+            async with aiofiles.open(
+                    stream_out_json_file,
+                    mode='r',
+                    encoding='utf-8'
+            ) as f:  # Выгружаем содержимое json-файла по wasd
+                contents = await f.read()
+        except Exception:
+            return False, streamer_
+        stream_out_json_data = json.loads(contents)
 
-        async def cicle_check():    # Проверка статуса стрима во внешнем json-файле
-            try:
-                # Выгружаем содержимое json-файла по wasd
-                async with aiofiles.open(stream_out_json_file, mode='r', encoding='utf-8') as f:
-                    contents = await f.read()
-            except Exception as err:
-                return False
-            stream_out_json_data = json.loads(contents)
-
+        for streamer_out in stream_out_json_data:
             # Проверяем статус стрима во внешнем json-файле
-            for streamer_out in stream_out_json_data:
+            if str(streamer_out['channel_id']) == str(streamer['channel_id']):
                 # Проверяем только по текущему каналу и текущей платформе
-                if str(streamer_out['channel_id']) == str(streamer['channel_id']):
-                    if streamer_out['stream_status'] is True:
-                        streamer['last_stream_name'] = streamer_out['last_stream_name']     # Имя текущего стрима
-                        return True  # online
-                    else:
-                        return False # offline
-
-        return (await cicle_check()), streamer
+                if streamer_out['stream_status']:
+                    # Имя текущего стрима
+                    streamer['last_stream_name'] = streamer_out['last_stream_name']
+                    return True, streamer_  # online
+                else:
+                    return False, streamer_  # offline
 
     # online profilactic
     streamers = get_streamers()
@@ -1584,6 +1578,7 @@ def start():
         # get streamers from db
         # and
         # construct keyboard
+
 
         result = uic.ERROR
 
