@@ -74,6 +74,11 @@ class StreamingPlatform(Enum):
     Trovo = 'trovo.live'
 
 
+class WrongCommand(Exception):
+    def __init__(self, msg):
+        self.msg = msg
+
+
 # classes
 class MyConnection(Connection):
     def __enter__(self):
@@ -506,11 +511,11 @@ def add_stream(streamer, args, reply, db, cur):
     part = args[1] if len(args) >= 2 else None
 
     if not reply:
-        return None
+        raise WrongCommand('Reply is not attached to command.')
     if not reply.caption:
-        return None
+        raise WrongCommand('Caption is absent in reply.')
     if not reply.video:
-        return None
+        raise WrongCommand('Video is absent in reply.')
 
     before = get_stream_parts(streamer, folder_name, cur)
 
@@ -1291,13 +1296,18 @@ def start():
         args = [re.sub(r"@@", " ", arg) for arg in args]
 
         with database, database.cursor() as cur:
-            succsces = add_stream(streamer, args, message.reply_to_message, database, cur)
-
-        if succsces:
-            parts_before, parts_after = succsces
-            await message.reply(uic.added_with_parts(parts_before, parts_after), parse_mode="html")
-        else:
-            await message.reply(uic.WRONG)
+            try:
+                parts_before, parts_after = add_stream(
+                    streamer,
+                    args,
+                    message.reply_to_message,
+                    database,
+                    cur
+                )
+            except WrongCommand as e:
+                await message.reply(uic.build_wrong_msg(e.msg))
+            else:
+                await message.reply(uic.added_with_parts(parts_before, parts_after), parse_mode="html")
 
     @dispatcher.message_handler(dashboard_filter, commands=["add1"])
     async def add1_handler(message: types.Message):

@@ -127,6 +127,10 @@ TIME_FORMAT = "%d/%m/%y %H:%M"
 TIMEZONE = 3 * 60 * 60
 
 
+def build_wrong_msg(msg):
+    return f'{WRONG} Details: {msg}'
+
+
 def build_last_stream(streamer):
     return f"{streamer['name']:^25}\n{time.strftime(TIME_FORMAT, time.gmtime(streamer['lastup'] + TIMEZONE)):^25}\n"
 
