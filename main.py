@@ -333,12 +333,12 @@ def get_keyboard(arguments, cur):
             if result['part']:
                 keys.append([IKB(
                     text=f"{result['caption']}",
-                    callback_data=f"2@{'@'.join(arguments)}@{result['part']}"
+                    callback_data=f"upload@{'@'.join(arguments)}@{result['part']}"
                 )])
             else:
                 keys.append([IKB(
                     text=f"{result['caption']}",
-                    callback_data=f"2@{'@'.join(arguments)}"
+                    callback_data=f"upload@{'@'.join(arguments)}"
                 )])
     else:
         results = []
@@ -1457,15 +1457,7 @@ def start():
                 await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
             return
 
-        if args[0] == '1':
-            with database, database.cursor() as cur:
-                keyboard = get_keyboard(args, cur)
-            try:
-                await callback_query.message.edit_text(uic.PICK_MSG[len(args) - 1], reply_markup=keyboard)
-            except MessageNotModified:
-                await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
-
-        if args[0] == '2':
+        if args[0] == 'upload':
             await callback_query.message.chat.do('upload_video')
 
             with database, database.cursor() as cur:
@@ -1474,6 +1466,15 @@ def start():
                 await callback_query.message.answer_video(video=video['file_id'], caption=video['caption'])
             else:
                 await callback_query.message.answer(uic.NOT_FOUND)
+            return
+
+        # send next page
+        with database, database.cursor() as cur:
+            keyboard = get_keyboard(args, cur)
+        try:
+            await callback_query.message.edit_text(uic.PICK_MSG[len(args) - 1], reply_markup=keyboard)
+        except MessageNotModified:
+            await callback_query.answer(uic.NOTHING_NEW, show_alert=False)
 
     demons = []
 
