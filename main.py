@@ -310,7 +310,10 @@ def get_keyboard(arguments, cur):
 
     elif len(arguments) == 1:
         cur.execute(f"""
-            SELECT DISTINCT folder_name FROM streams WHERE author = %s ORDER BY created_at DESC
+            SELECT DISTINCT folder_name FROM streams 
+            WHERE author = %s
+            GROUP BY folder_name
+            ORDER BY MAX(created_at) DESC, folder_name
         """, arguments)
         results = cur.fetchall()
 
@@ -323,7 +326,7 @@ def get_keyboard(arguments, cur):
     elif len(arguments) == 2:
         cur.execute(f"""
             SELECT caption, part FROM streams 
-            WHERE author = %s AND folder_name = %s ORDER BY part ASC
+            WHERE author = %s AND folder_name = %s ORDER BY part DESC
         """, arguments)
         results = cur.fetchall()
         for result in results[(page_number - 1) * 10:page_number * 10]:
