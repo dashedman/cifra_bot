@@ -1173,7 +1173,7 @@ def start():
                 folder_name Varchar(255)    NOT NULL,
                 file_id     Varchar(255)    NOT NULL,
                 caption     Varchar(1024)   NOT NULL,
-                part        TinyInt         NULL
+                part        Int             NULL
             )
         """)
         dbcursor.execute("""
